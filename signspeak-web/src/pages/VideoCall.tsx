@@ -20,12 +20,14 @@ interface ConnectedVideoCallProps {
 }
 
 export function VideoCall() {
-  const [tokenInput, setTokenInput] = useState('');
   const [connectionToken, setConnectionToken] = useState<string | null>(null);
   const [remoteCaptions, setRemoteCaptions] = useState<string[]>([]);
   const [localCaptions, setLocalCaptions] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [roomName, setRoomName] = useState('');
+  const [participantName, setParticipantName] = useState('');
+  const [shareableLink, setShareableLink] = useState('');
 
   const captionsSentRef = useRef<Set<string>>(new Set());
   const sendCaptionRef = useRef<(text: string) => void>(() => {
@@ -33,6 +35,12 @@ export function VideoCall() {
   });
 
   const serverUrl = import.meta.env.VITE_LIVEKIT_URL ?? '';
+
+  // Generate random room ID on mount
+  useEffect(() => {
+    const randomRoomId = `room-${Math.random().toString(36).substring(2, 9)}`;
+    setRoomName(randomRoomId);
+  }, []);
 
   const speech = useSpeechToText({
     continuous: true,
@@ -66,45 +74,50 @@ export function VideoCall() {
       return;
     }
 
+    if (!participantName.trim()) {
+      setError('Please enter your name');
+      return;
+    }
+
     setIsConnecting(true);
     setError(null);
 
     try {
       let token: string;
 
-      // If user provided a token, use it
-      if (tokenInput.trim()) {
-        token = tokenInput.trim();
-      } else {
-        // Otherwise, try to get token from API or environment
-        try {
-          // Try API token endpoint first (production)
-          const response = await fetch('/api/token', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              roomName: 'duckspeak-room',
-              participantName: `person-${Math.random().toString(36).substring(7)}`,
-              metadata: JSON.stringify({ role: 'personA' }),
-            }),
-          });
+      // Get token from API or environment
+      try {
+        // Try API token endpoint first (production)
+        const response = await fetch('/api/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            roomName: roomName,
+            participantName: participantName.trim(),
+            metadata: JSON.stringify({ role: 'participant' }),
+          }),
+        });
 
-          if (!response.ok) {
-            throw new Error('Failed to fetch token from API');
-          }
-
-          const data = await response.json();
-          token = data.token;
-        } catch (apiError) {
-          // Fallback to environment variable for local dev
-          console.log('[VideoCall] API token failed, trying env variable:', apiError);
-          const envToken = getLiveKitToken();
-          if (!envToken) {
-            throw new Error('No token available. Please provide a token or configure VITE_LIVEKIT_TOKEN');
-          }
-          token = envToken;
+        if (!response.ok) {
+          throw new Error('Failed to fetch token from API');
         }
+
+        const data = await response.json();
+        token = data.token;
+      } catch (apiError) {
+        // Fallback to environment variable for local dev
+        console.log('[VideoCall] API token failed, trying env variable:', apiError);
+        const envToken = getLiveKitToken();
+        if (!envToken) {
+          throw new Error('No token available. Please configure your LiveKit credentials');
+        }
+        token = envToken;
       }
+
+      // Generate shareable link
+      const currentUrl = window.location.origin + window.location.pathname;
+      const link = `${currentUrl}?room=${encodeURIComponent(roomName)}`;
+      setShareableLink(link);
 
       setConnectionToken(token);
     } catch (err) {
@@ -122,6 +135,16 @@ export function VideoCall() {
     setRemoteCaptions([]);
     setConnectionToken(null);
     setIsConnecting(false);
+    setShareableLink('');
+  }, []);
+
+  // Check URL params for room on mount
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomParam = urlParams.get('room');
+    if (roomParam) {
+      setRoomName(roomParam);
+    }
   }, []);
 
   const handleLeaveCall = useCallback(() => {
@@ -133,33 +156,45 @@ export function VideoCall() {
     return (
       <div style={styles.joinContainer}>
         <div style={styles.joinCard}>
-          <h1 style={styles.title}>Person A: Video + Speech</h1>
+          <h1 style={styles.title}>SignSpeak Video Call</h1>
           <p style={styles.subtitle}>
-            Connect to your LiveKit room to start a video call with live captions
+            Start or join a video call with live ASL captions
           </p>
 
           <div style={styles.inputGroup}>
-            <label style={styles.label}>LiveKit Access Token (Optional)</label>
+            <label style={styles.label}>Your Name</label>
             <input
               type="text"
-              value={tokenInput}
-              onChange={(e) => setTokenInput(e.target.value)}
-              placeholder="Leave blank for auto-generated token or paste your own"
+              value={participantName}
+              onChange={(e) => setParticipantName(e.target.value)}
+              placeholder="Enter your name"
+              style={styles.input}
+              onKeyDown={(e) => e.key === 'Enter' && handleJoinCall()}
+            />
+          </div>
+
+          <div style={styles.inputGroup}>
+            <label style={styles.label}>Room Name</label>
+            <input
+              type="text"
+              value={roomName}
+              onChange={(e) => setRoomName(e.target.value)}
+              placeholder="Room name (auto-generated)"
               style={styles.input}
               onKeyDown={(e) => e.key === 'Enter' && handleJoinCall()}
             />
             <p style={styles.hint}>
-              Token will be automatically generated. Paste a custom token only if needed.
+              A random room name has been generated. You can change it or keep the default.
             </p>
           </div>
 
           <button
             onClick={handleJoinCall}
-            disabled={isConnecting}
+            disabled={isConnecting || !participantName.trim()}
             style={{
               ...styles.button,
               ...styles.joinButton,
-              ...(isConnecting && styles.buttonDisabled),
+              ...(isConnecting || !participantName.trim() ? styles.buttonDisabled : {}),
             }}
           >
             {isConnecting ? 'Connecting…' : 'Join Call'}
@@ -173,12 +208,12 @@ export function VideoCall() {
           )}
 
           <div style={styles.instructions}>
-            <h3 style={styles.instructionsTitle}>How to join:</h3>
+            <h3 style={styles.instructionsTitle}>How it works:</h3>
             <ol style={styles.instructionsList}>
-              <li>Click "Join Call" to auto-generate a token and join the room</li>
-              <li>Share the room name "duckspeak-room" with Person B</li>
-              <li>Person B can join the same room for video calling</li>
-              <li>Optional: Paste a custom token if you have one</li>
+              <li>Enter your name and click "Join Call"</li>
+              <li>Share the link that appears with others to join the same room</li>
+              <li>Everyone in the room will see live video and captions</li>
+              <li>Your speech will be converted to text and sent to all participants</li>
             </ol>
           </div>
         </div>
@@ -203,9 +238,14 @@ export function VideoCall() {
         sendCaptionRef={sendCaptionRef}
         onLeave={handleLeaveCall}
         onRemoteCaptionReceived={handleRemoteCaption}
+        shareableLink={shareableLink}
       />
     </LiveKitRoom>
   );
+}
+
+interface ConnectedVideoCallPropsExtended extends ConnectedVideoCallProps {
+  shareableLink: string;
 }
 
 function ConnectedVideoCall({
@@ -215,7 +255,10 @@ function ConnectedVideoCall({
   sendCaptionRef,
   onLeave,
   onRemoteCaptionReceived,
-}: ConnectedVideoCallProps) {
+  shareableLink,
+}: ConnectedVideoCallPropsExtended) {
+  const [linkCopied, setLinkCopied] = useState(false);
+
   const {
     localVideoRef,
     remoteVideoRef,
@@ -232,6 +275,16 @@ function ConnectedVideoCall({
   } = useLiveKit({
     onRemoteCaptionReceived: (caption) => onRemoteCaptionReceived(caption.text),
   });
+
+  const copyLinkToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(shareableLink);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy link:', err);
+    }
+  };
 
   useEffect(() => {
     sendCaptionRef.current = (text: string) => {
@@ -263,7 +316,7 @@ function ConnectedVideoCall({
   return (
     <div style={styles.container}>
       <header style={styles.header}>
-        <h1 style={styles.headerTitle}>Person A: LiveKit Video Call</h1>
+        <h1 style={styles.headerTitle}>SignSpeak Video Call</h1>
         <div style={styles.headerControls}>
           <button
             onClick={toggleMute}
@@ -305,6 +358,22 @@ function ConnectedVideoCall({
           </button>
         </div>
       </header>
+
+      {shareableLink && (
+        <div style={styles.shareLinkBanner}>
+          <span style={styles.shareLinkLabel}>Share this link with others:</span>
+          <input
+            type="text"
+            value={shareableLink}
+            readOnly
+            style={styles.shareLinkInput}
+            onClick={(e) => (e.target as HTMLInputElement).select()}
+          />
+          <button onClick={copyLinkToClipboard} style={{ ...styles.button, ...styles.copyButton }}>
+            {linkCopied ? '✅ Copied!' : '📋 Copy Link'}
+          </button>
+        </div>
+      )}
 
       {(error || speech.error) && (
         <div style={styles.errorBanner}>
@@ -661,5 +730,37 @@ const styles = {
     color: '#888',
     marginTop: '8px',
     marginBottom: 0,
+  } as const,
+  shareLinkBanner: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '12px 24px',
+    backgroundColor: '#1a3d2e',
+    borderBottom: '1px solid #2e7d5e',
+  } as const,
+  shareLinkLabel: {
+    fontSize: '14px',
+    fontWeight: 'bold' as const,
+    color: '#7effa8',
+    whiteSpace: 'nowrap' as const,
+  } as const,
+  shareLinkInput: {
+    flex: 1,
+    padding: '8px 12px',
+    fontSize: '14px',
+    backgroundColor: '#0d1f17',
+    color: '#7effa8',
+    border: '1px solid #2e7d5e',
+    borderRadius: '4px',
+    outline: 'none',
+    fontFamily: 'monospace',
+  } as const,
+  copyButton: {
+    backgroundColor: '#2e7d5e',
+    color: '#fff',
+    padding: '8px 16px',
+    fontSize: '14px',
+    whiteSpace: 'nowrap' as const,
   } as const,
 } as const;
