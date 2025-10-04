@@ -60,19 +60,56 @@ export function VideoCall() {
     setRemoteCaptions((prev) => [...prev, text]);
   }, []);
 
-  const handleJoinCall = () => {
+  const handleJoinCall = async () => {
     if (!serverUrl) {
       setError('LiveKit server URL not configured. Set VITE_LIVEKIT_URL to continue.');
       return;
     }
 
+    setIsConnecting(true);
+    setError(null);
+
     try {
-      const resolvedToken = getLiveKitToken({ tokenOverride: tokenInput });
-      setConnectionToken(resolvedToken);
-      setIsConnecting(true);
-      setError(null);
+      let token: string;
+
+      // If user provided a token, use it
+      if (tokenInput.trim()) {
+        token = tokenInput.trim();
+      } else {
+        // Otherwise, try to get token from API or environment
+        try {
+          // Try API token endpoint first (production)
+          const response = await fetch('/api/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              roomName: 'duckspeak-room',
+              participantName: `person-${Math.random().toString(36).substring(7)}`,
+              metadata: JSON.stringify({ role: 'personA' }),
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to fetch token from API');
+          }
+
+          const data = await response.json();
+          token = data.token;
+        } catch (apiError) {
+          // Fallback to environment variable for local dev
+          console.log('[VideoCall] API token failed, trying env variable:', apiError);
+          const envToken = getLiveKitToken();
+          if (!envToken) {
+            throw new Error('No token available. Please provide a token or configure VITE_LIVEKIT_TOKEN');
+          }
+          token = envToken;
+        }
+      }
+
+      setConnectionToken(token);
     } catch (err) {
       setError((err as Error).message);
+      setIsConnecting(false);
     }
   };
 
@@ -102,15 +139,18 @@ export function VideoCall() {
           </p>
 
           <div style={styles.inputGroup}>
-            <label style={styles.label}>LiveKit Access Token</label>
+            <label style={styles.label}>LiveKit Access Token (Optional)</label>
             <input
               type="text"
               value={tokenInput}
               onChange={(e) => setTokenInput(e.target.value)}
-              placeholder="Paste a LiveKit token or leave blank to use VITE_LIVEKIT_TOKEN"
+              placeholder="Leave blank for auto-generated token or paste your own"
               style={styles.input}
               onKeyDown={(e) => e.key === 'Enter' && handleJoinCall()}
             />
+            <p style={styles.hint}>
+              Token will be automatically generated. Paste a custom token only if needed.
+            </p>
           </div>
 
           <button
@@ -133,12 +173,12 @@ export function VideoCall() {
           )}
 
           <div style={styles.instructions}>
-            <h3 style={styles.instructionsTitle}>Generating a LiveKit token:</h3>
+            <h3 style={styles.instructionsTitle}>How to join:</h3>
             <ol style={styles.instructionsList}>
-              <li>Deploy a LiveKit project and create a room</li>
-              <li>Generate a temporary access token for Person A</li>
-              <li>Paste the token above (or configure VITE_LIVEKIT_TOKEN)</li>
-              <li>Share the same room + token with Person B</li>
+              <li>Click "Join Call" to auto-generate a token and join the room</li>
+              <li>Share the room name "duckspeak-room" with Person B</li>
+              <li>Person B can join the same room for video calling</li>
+              <li>Optional: Paste a custom token if you have one</li>
             </ol>
           </div>
         </div>
@@ -615,5 +655,11 @@ const styles = {
     borderRadius: '12px',
     border: '1px solid #222',
     padding: '20px',
+  } as const,
+  hint: {
+    fontSize: '12px',
+    color: '#888',
+    marginTop: '8px',
+    marginBottom: 0,
   } as const,
 } as const;
