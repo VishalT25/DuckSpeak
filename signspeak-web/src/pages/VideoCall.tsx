@@ -635,41 +635,6 @@ function ConnectedVideoCall({
           copyLinkToClipboard={copyLinkToClipboard}
         />
       </div>
-
-      {/* Caption history sidebar */}
-      <div style={styles.captionSidebar}>
-        <h3 style={styles.sidebarTitle}>📝 Live Captions</h3>
-        <div style={styles.captionList}>
-          {captions.length === 0 ? (
-            <div style={styles.emptyCaptions}>
-              {speech.isListening ? 'Listening... Start speaking!' : 'Start speaking to see captions...'}
-            </div>
-          ) : (
-            captions.map((caption) => (
-              <div
-                key={caption.id}
-                style={{
-                  ...styles.captionItem,
-                  ...(caption.sender === 'local' ? styles.localCaptionItem : styles.remoteCaptionItem)
-                }}
-              >
-                <div style={styles.captionSender}>
-                  {caption.sender === 'local' ? '👤 You' : '👥 Remote'}
-                </div>
-                <div style={styles.captionText}>{caption.text}</div>
-                <div style={styles.captionTime}>
-                  {new Date(caption.timestamp).toLocaleTimeString()}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-        {!speech.isSupported && (
-          <div style={styles.speechNotSupported}>
-            ⚠️ Speech recognition not available in this browser. Try Chrome or Edge.
-          </div>
-        )}
-      </div>
     </div>
   );
 }
@@ -918,16 +883,20 @@ const styles = {
   videoCard: {
     position: 'relative' as const,
     borderRadius: '20px',
-    overflow: 'hidden',
     background: '#000',
     border: '2px solid rgba(0, 255, 136, 0.2)',
     boxShadow: '0 10px 40px rgba(0, 0, 0, 0.5)',
+    display: 'flex',
+    flexDirection: 'column' as const,
   } as const,
   videoContainer: {
     position: 'relative' as const,
     width: '100%',
-    height: '100%',
     minHeight: '400px',
+    flex: '0 0 auto',
+    overflow: 'hidden',
+    borderTopLeftRadius: '20px',
+    borderTopRightRadius: '20px',
   } as const,
   video: {
     width: '100%',
@@ -1073,10 +1042,12 @@ const styles = {
     fontWeight: '600' as const,
   } as const,
   captionTextBox: {
-    background: 'rgba(0, 0, 0, 0.8)',
+    background: 'rgba(0, 0, 0, 0.9)',
     backdropFilter: 'blur(10px)',
     borderTop: '2px solid rgba(0, 255, 136, 0.3)',
-    padding: '12px',
+    padding: '16px',
+    borderBottomLeftRadius: '20px',
+    borderBottomRightRadius: '20px',
   } as const,
   captionTextBoxHeader: {
     fontSize: '12px',
