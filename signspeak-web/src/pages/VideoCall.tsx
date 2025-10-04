@@ -217,7 +217,7 @@ export function VideoCall() {
               <li>📹 HD video calling with multiple participants</li>
               <li>💬 Live speech-to-text captions</li>
               <li>🤟 Automatic sign language interpretation</li>
-              <li>🎯 Real-time gesture recognition</li>
+              <li>🎯 Real-time gesture recognition (coming soon)</li>
             </ul>
           </div>
         </div>
@@ -275,6 +275,7 @@ function ConnectedVideoCall({
 }: ConnectedVideoCallProps) {
   const [linkCopied, setLinkCopied] = useState(false);
   const [currentSignWord, setCurrentSignWord] = useState<string>('');
+  const [speechStarted, setSpeechStarted] = useState(false);
 
   const {
     localVideoRef,
@@ -305,19 +306,29 @@ function ConnectedVideoCall({
     };
   }, [sendCaption, sendCaptionRef]);
 
+  // Speech recognition control - fixed dependency loop
   useEffect(() => {
-    if (isConnected && speech.isSupported && !speech.isListening && !signRecognitionMode) {
+    if (!isConnected || !speech.isSupported) return;
+
+    if (!signRecognitionMode && !speechStarted) {
+      console.log('[VideoCall] Starting speech recognition');
       speech.startListening();
+      setSpeechStarted(true);
     }
 
-    if (!isConnected && speech.isListening) {
+    if (signRecognitionMode && speechStarted) {
+      console.log('[VideoCall] Stopping speech recognition (sign mode)');
       speech.stopListening();
+      setSpeechStarted(false);
     }
 
-    if (signRecognitionMode && speech.isListening) {
-      speech.stopListening();
-    }
-  }, [isConnected, speech, signRecognitionMode]);
+    return () => {
+      if (speechStarted) {
+        speech.stopListening();
+        setSpeechStarted(false);
+      }
+    };
+  }, [isConnected, signRecognitionMode, speech.isSupported]);
 
   // Extract sign words from captions
   useEffect(() => {
@@ -396,7 +407,7 @@ function ConnectedVideoCall({
               ...styles.controlBtn,
               ...(signRecognitionMode && styles.controlBtnActive),
             }}
-            title="Toggle sign recognition mode"
+            title="Toggle sign recognition mode (Coming soon: Use Recognize tab for ASL)"
           >
             🤟
           </button>
@@ -422,6 +433,18 @@ function ConnectedVideoCall({
       {error && (
         <div style={styles.errorBanner}>
           ⚠️ {error}
+        </div>
+      )}
+
+      {signRecognitionMode && (
+        <div style={styles.infoBanner}>
+          ℹ️ Sign Recognition Mode: Speech captions disabled. Full ASL recognition coming soon - use the "Recognize" tab for trained ASL detection.
+        </div>
+      )}
+
+      {speech.error && (
+        <div style={styles.errorBanner}>
+          ⚠️ Speech: {speech.error}
         </div>
       )}
 
@@ -527,7 +550,7 @@ function ConnectedVideoCall({
         <div style={styles.captionList}>
           {captions.length === 0 ? (
             <div style={styles.emptyCaptions}>
-              Start speaking to see captions...
+              {speech.isListening ? 'Listening... Start speaking!' : 'Start speaking to see captions...'}
             </div>
           ) : (
             captions.map((caption) => (
@@ -549,6 +572,11 @@ function ConnectedVideoCall({
             ))
           )}
         </div>
+        {!speech.isSupported && (
+          <div style={styles.speechNotSupported}>
+            ⚠️ Speech recognition not available in this browser. Try Chrome or Edge.
+          </div>
+        )}
       </div>
     </div>
   );
@@ -772,6 +800,13 @@ const styles = {
     color: '#ff6666',
     fontSize: '14px',
   } as const,
+  infoBanner: {
+    padding: '12px 24px',
+    background: 'rgba(0, 136, 255, 0.2)',
+    borderBottom: '1px solid rgba(0, 136, 255, 0.4)',
+    color: '#66ccff',
+    fontSize: '14px',
+  } as const,
   videoGrid: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
@@ -974,6 +1009,16 @@ const styles = {
   captionTime: {
     fontSize: '10px',
     color: '#666',
+  } as const,
+  speechNotSupported: {
+    marginTop: '12px',
+    padding: '12px',
+    background: 'rgba(255, 153, 0, 0.15)',
+    border: '1px solid rgba(255, 153, 0, 0.3)',
+    borderRadius: '8px',
+    color: '#ffaa44',
+    fontSize: '12px',
+    textAlign: 'center' as const,
   } as const,
 } as const;
 
