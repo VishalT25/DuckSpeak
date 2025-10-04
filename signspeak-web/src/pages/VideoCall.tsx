@@ -361,7 +361,6 @@ function ConnectedVideoCall({
   const [currentSignWord, setCurrentSignWord] = useState<string>('');
   const [speechStarted, setSpeechStarted] = useState(false);
   const [aslGesturesSent, setAslGesturesSent] = useState<Set<string>>(new Set());
-  const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
   const localVideoElementRef = useRef<HTMLVideoElement | null>(null);
 
   const {
@@ -468,23 +467,6 @@ function ConnectedVideoCall({
       }
     };
   }, [isConnected, signRecognitionMode, speech.isSupported]);
-
-  // Draw hand landmarks on canvas
-  useEffect(() => {
-    if (!signRecognitionMode || !overlayCanvasRef.current) return;
-
-    const drawLoop = () => {
-      if (overlayCanvasRef.current) {
-        asl.drawLandmarks(overlayCanvasRef.current);
-      }
-      if (signRecognitionMode) {
-        requestAnimationFrame(drawLoop);
-      }
-    };
-
-    const frameId = requestAnimationFrame(drawLoop);
-    return () => cancelAnimationFrame(frameId);
-  }, [signRecognitionMode, asl]);
 
   // Extract sign words from captions
   useEffect(() => {
@@ -630,22 +612,6 @@ function ConnectedVideoCall({
               playsInline
               style={styles.video}
             />
-            {/* Hand landmark overlay for ASL recognition */}
-            {signRecognitionMode && (
-              <canvas
-                ref={overlayCanvasRef}
-                width={640}
-                height={480}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '100%',
-                  pointerEvents: 'none',
-                }}
-              />
-            )}
             <div style={styles.videoLabel}>
               {participantName} (You)
             </div>
