@@ -913,6 +913,7 @@ const styles = {
     height: '100%',
     objectFit: 'cover' as const,
     backgroundColor: '#111',
+    transform: 'scaleX(-1)',
   } as const,
   videoLabel: {
     position: 'absolute' as const,
