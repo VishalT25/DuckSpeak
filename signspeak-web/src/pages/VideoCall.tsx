@@ -8,8 +8,6 @@ import { LiveKitRoom, useParticipants } from '@livekit/components-react';
 import { useLiveKit, CaptionMessage } from '../hooks/useLiveKit';
 import { useSpeechToText } from '../hooks/useSpeechToText';
 import { useASLRecognition } from '../hooks/useASLRecognition';
-import { SignAnimator } from '../components/SignAnimator';
-import { getSignAnimation, hasSignAnimation } from '../data/signMappings';
 import { toNaturalText } from '../lib/labels';
 import { Track } from 'livekit-client';
 
@@ -255,12 +253,11 @@ export function VideoCall() {
 
 interface RemoteParticipantsProps {
   latestRemoteCaption: Caption | undefined;
-  currentSignWord: string;
   linkCopied: boolean;
   copyLinkToClipboard: () => void;
 }
 
-function RemoteParticipants({ latestRemoteCaption, currentSignWord, linkCopied, copyLinkToClipboard }: RemoteParticipantsProps) {
+function RemoteParticipants({ latestRemoteCaption, linkCopied, copyLinkToClipboard }: RemoteParticipantsProps) {
   const participants = useParticipants();
   const remoteParticipants = participants.filter(p => p.isLocal === false);
 
@@ -307,25 +304,25 @@ function RemoteParticipants({ latestRemoteCaption, currentSignWord, linkCopied, 
               <div style={styles.videoLabel}>
                 {participant.name || participant.identity}
               </div>
+            </div>
 
-              {/* Remote captions display */}
-              {latestRemoteCaption && (
-                <div style={styles.captionOverlay}>
-                  <div style={{ ...styles.captionBubble, ...styles.remoteCaptionBubble }}>
-                    💬 {latestRemoteCaption.text}
+            {/* Caption text box below video */}
+            <div style={styles.captionTextBox}>
+              <div style={styles.captionTextBoxHeader}>
+                {participant.name || participant.identity}'s Captions
+              </div>
+              <div style={styles.captionTextBoxContent}>
+                {latestRemoteCaption ? (
+                  <div style={styles.captionTextLine}>
+                    <span style={styles.captionIcon}>💬</span>
+                    {latestRemoteCaption.text}
                   </div>
-                </div>
-              )}
-
-              {/* Sign animator for remote */}
-              {currentSignWord && latestRemoteCaption?.sender === 'remote' && (
-                <div style={styles.signDisplay}>
-                  <SignAnimator caption={currentSignWord} isActive={true} />
-                  <div style={styles.signLabel}>
-                    {getSignAnimation(currentSignWord).description}
+                ) : (
+                  <div style={styles.captionTextEmpty}>
+                    Waiting for captions...
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         );
@@ -358,7 +355,6 @@ function ConnectedVideoCall({
   onToggleSignRecognition,
 }: ConnectedVideoCallProps) {
   const [linkCopied, setLinkCopied] = useState(false);
-  const [currentSignWord, setCurrentSignWord] = useState<string>('');
   const [speechStarted, setSpeechStarted] = useState(false);
   const [aslGesturesSent, setAslGesturesSent] = useState<Set<string>>(new Set());
   const localVideoElementRef = useRef<HTMLVideoElement | null>(null);
@@ -467,20 +463,6 @@ function ConnectedVideoCall({
       }
     };
   }, [isConnected, signRecognitionMode, speech.isSupported]);
-
-  // Extract sign words from captions
-  useEffect(() => {
-    const latest = captions[captions.length - 1];
-    if (!latest) return;
-
-    const words = latest.text.toLowerCase().split(/\s+/);
-    const signWord = words.find(word => hasSignAnimation(word));
-
-    if (signWord) {
-      setCurrentSignWord(signWord);
-      setTimeout(() => setCurrentSignWord(''), 3000); // Clear after 3 seconds
-    }
-  }, [captions]);
 
   const copyLinkToClipboard = async () => {
     try {
@@ -624,30 +606,31 @@ function ConnectedVideoCall({
             )}
           </div>
 
-          {/* Local captions display */}
-          {latestLocalCaption && (
-            <div style={styles.captionOverlay}>
-              <div style={styles.captionBubble}>
-                💬 {latestLocalCaption.text}
-              </div>
+          {/* Caption text box below video */}
+          <div style={styles.captionTextBox}>
+            <div style={styles.captionTextBoxHeader}>
+              {participantName}'s Captions
             </div>
-          )}
-
-          {/* Sign animator for local */}
-          {currentSignWord && latestLocalCaption?.sender === 'local' && (
-            <div style={styles.signDisplay}>
-              <SignAnimator caption={currentSignWord} isActive={true} />
-              <div style={styles.signLabel}>
-                {getSignAnimation(currentSignWord).description}
-              </div>
+            <div style={styles.captionTextBoxContent}>
+              {latestLocalCaption ? (
+                <div style={styles.captionTextLine}>
+                  <span style={styles.captionIcon}>
+                    {signRecognitionMode ? '🤟' : '💬'}
+                  </span>
+                  {latestLocalCaption.text}
+                </div>
+              ) : (
+                <div style={styles.captionTextEmpty}>
+                  {signRecognitionMode ? 'Sign to see ASL translations' : 'Speak to see captions'}
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
 
         {/* Remote participants */}
         <RemoteParticipants
           latestRemoteCaption={latestRemoteCaption}
-          currentSignWord={currentSignWord}
           linkCopied={linkCopied}
           copyLinkToClipboard={copyLinkToClipboard}
         />
@@ -1088,6 +1071,44 @@ const styles = {
     color: '#004d26',
     textAlign: 'center' as const,
     fontWeight: '600' as const,
+  } as const,
+  captionTextBox: {
+    background: 'rgba(0, 0, 0, 0.8)',
+    backdropFilter: 'blur(10px)',
+    borderTop: '2px solid rgba(0, 255, 136, 0.3)',
+    padding: '12px',
+  } as const,
+  captionTextBoxHeader: {
+    fontSize: '12px',
+    fontWeight: '600' as const,
+    color: '#7effa8',
+    marginBottom: '8px',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.5px',
+  } as const,
+  captionTextBoxContent: {
+    minHeight: '60px',
+    maxHeight: '120px',
+    overflowY: 'auto' as const,
+  } as const,
+  captionTextLine: {
+    fontSize: '16px',
+    color: '#fff',
+    lineHeight: 1.5,
+    display: 'flex',
+    gap: '8px',
+    alignItems: 'flex-start',
+  } as const,
+  captionIcon: {
+    fontSize: '18px',
+    flexShrink: 0,
+  } as const,
+  captionTextEmpty: {
+    fontSize: '14px',
+    color: '#666',
+    fontStyle: 'italic' as const,
+    textAlign: 'center' as const,
+    padding: '20px 0',
   } as const,
   captionSidebar: {
     position: 'absolute' as const,
