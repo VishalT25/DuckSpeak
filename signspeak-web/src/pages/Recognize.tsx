@@ -7,14 +7,17 @@ import { CameraView } from '../components/CameraView';
 import { OverlayCanvas } from '../components/OverlayCanvas';
 import { ConfidenceBar } from '../components/ConfidenceBar';
 import { SettingsDrawer } from '../components/SettingsDrawer';
-import { LandmarkDetector, startCamera, stopCamera } from '../lib/landmarks';
+import { LandmarkDetector, stopCamera } from '../lib/landmarks';
 import { toMultiHandFeatureVector } from '../lib/features';
 import { createClassifier } from '../lib/classifier';
 import { createSmoothedClassifier } from '../lib/smoothing';
+import type { SmoothingOptions } from '../lib/smoothing';
 import { loadModel } from '../lib/storage';
 import { toNaturalText } from '../lib/labels';
 import { TextToSpeech } from '../lib/tts';
 import { FingerspellingMode, formatFingerspelledWord } from '../lib/fingerspelling';
+
+type SmoothingParams = Required<SmoothingOptions> & { k: number };
 
 export function Recognize() {
   const [isInitialized, setIsInitialized] = useState(false);
@@ -28,7 +31,7 @@ export function Recognize() {
   const [fingerspellingEnabled, setFingerspellingEnabled] = useState(false);
   const [currentWord, setCurrentWord] = useState('');
 
-  const [params, setParams] = useState({
+  const [params, setParams] = useState<SmoothingParams>({
     k: 5,
     windowSize: 15,
     minHoldFrames: 10, // Increased from 8 to reduce false positives
@@ -64,7 +67,16 @@ export function Recognize() {
         classifier.import(modelData);
 
         // Check if model is compatible with 2-hand features (84 dimensions)
-        const trainedFeatureDim = modelData.params.X?.[0]?.length || 0;
+        let trainedFeatureDim = 0;
+        if (modelData.type === 'knn') {
+          const knnParams = modelData.params as { X?: number[][] };
+          if (Array.isArray(knnParams.X) && knnParams.X.length > 0) {
+            const firstSample = knnParams.X[0];
+            if (Array.isArray(firstSample)) {
+              trainedFeatureDim = firstSample.length;
+            }
+          }
+        }
         if (trainedFeatureDim !== 84 && trainedFeatureDim !== 0) {
           setError(
             `Model incompatible: trained with ${trainedFeatureDim} features, but 2-hand mode requires 84 features. ` +
@@ -192,7 +204,7 @@ export function Recognize() {
   };
 
   // Update parameters
-  const handleUpdateParams = (newParams: typeof params) => {
+  const handleUpdateParams = (newParams: SmoothingParams) => {
     setParams(newParams);
 
     if (classifierRef.current) {

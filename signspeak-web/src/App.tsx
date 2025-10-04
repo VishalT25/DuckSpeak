@@ -5,8 +5,9 @@
 import { useState } from 'react';
 import { Recognize } from './pages/Recognize';
 import { CollectTrain } from './pages/CollectTrain';
+import { VideoCall } from './pages/VideoCall';
 
-type Tab = 'recognize' | 'collect';
+type Tab = 'recognize' | 'collect' | 'videocall';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<Tab>('recognize');
@@ -60,6 +61,21 @@ export function App() {
             >
               Collect & Train
             </button>
+            <button
+              onClick={() => setActiveTab('videocall')}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: activeTab === 'videocall' ? '#00ff00' : '#333',
+                color: activeTab === 'videocall' ? '#000' : '#fff',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontWeight: activeTab === 'videocall' ? 'bold' : 'normal',
+                fontSize: '16px',
+              }}
+            >
+              Video Call
+            </button>
           </nav>
         </div>
       </header>
@@ -68,6 +84,7 @@ export function App() {
       <main>
         {activeTab === 'recognize' && <Recognize />}
         {activeTab === 'collect' && <CollectTrain />}
+        {activeTab === 'videocall' && <VideoCall />}
       </main>
 
       {/* Footer */}

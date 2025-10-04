@@ -2,7 +2,7 @@
  * storage.ts - IndexedDB storage for datasets and models
  */
 
-import { get, set, del, keys } from 'idb-keyval';
+import { get, set, del } from 'idb-keyval';
 import type { ClassifierData } from './classifier';
 
 export interface DatasetSample {

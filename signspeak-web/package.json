@@ -7,11 +7,14 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "generate:token": "node scripts/generate-livekit-token.mjs"
   },
   "dependencies": {
+    "@livekit/components-react": "^2.9.15",
     "@mediapipe/tasks-vision": "^0.10.8",
     "idb-keyval": "^6.2.1",
+    "livekit-client": "^2.15.8",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "zustand": "^4.4.7"

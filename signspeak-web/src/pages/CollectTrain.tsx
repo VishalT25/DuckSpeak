@@ -6,7 +6,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { CameraView } from '../components/CameraView';
 import { OverlayCanvas } from '../components/OverlayCanvas';
 import { CapturePanel } from '../components/CapturePanel';
-import { LandmarkDetector, startCamera, stopCamera } from '../lib/landmarks';
+import { LandmarkDetector, stopCamera } from '../lib/landmarks';
 import { toMultiHandFeatureVector } from '../lib/features';
 import { createClassifier } from '../lib/classifier';
 import {
@@ -475,8 +475,6 @@ export function CollectTrain() {
 
   // Calculate progress for visual feedback
   const captureProgress = Math.min((capturedCount / targetCount) * 100, 100);
-  const collectedSigns = Object.keys(sampleCounts).filter(label => sampleCounts[label] >= 50);
-
   return (
     <div style={{ padding: '20px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>

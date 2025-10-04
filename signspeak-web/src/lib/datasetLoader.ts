@@ -120,7 +120,6 @@ export async function loadDatasetFromFile(file: File): Promise<{ X: Float32Array
  */
 function generateRealisticHandPose(
   signIndex: number,
-  totalSigns: number,
   isRightHand: boolean = true
 ): HandLandmarks {
   const landmarks: HandLandmarks = [];
@@ -213,7 +212,7 @@ export function generateSampleDataset(
 
     for (let i = 0; i < samplesPerLabel; i++) {
       // Generate base realistic hand pose
-      let hand1 = generateRealisticHandPose(labelIdx, labels.length, true);
+      let hand1 = generateRealisticHandPose(labelIdx, true);
 
       // Add natural variation
       hand1 = addNaturalVariation(hand1, 0.025);
@@ -222,7 +221,7 @@ export function generateSampleDataset(
 
       // Add second hand if needed
       if (useSecondHand) {
-        let hand2 = generateRealisticHandPose(labelIdx, labels.length, false);
+        let hand2 = generateRealisticHandPose(labelIdx, false);
         hand2 = addNaturalVariation(hand2, 0.025);
         landmarksList.push(hand2);
       }

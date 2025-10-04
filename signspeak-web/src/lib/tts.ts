@@ -77,6 +77,7 @@ export function setVoice(utterance: SpeechSynthesisUtterance, voiceNameOrIndex: 
  */
 export class TextToSpeech {
   private lastSpoken: string | null = null;
+  private lastSpokenAt: number = 0;
   private debounceMs: number;
 
   constructor(debounceMs: number = 1000) {
@@ -85,11 +86,13 @@ export class TextToSpeech {
 
   speak(text: string, force: boolean = false): void {
     // Avoid repeating same text
-    if (!force && text === this.lastSpoken) {
+    const now = Date.now();
+    if (!force && text === this.lastSpoken && now - this.lastSpokenAt < this.debounceMs) {
       return;
     }
 
     this.lastSpoken = text;
+    this.lastSpokenAt = now;
     speak(text);
   }
 
@@ -99,6 +102,7 @@ export class TextToSpeech {
 
   reset(): void {
     this.lastSpoken = null;
+    this.lastSpokenAt = 0;
   }
 }
 

@@ -1,1 +1,4 @@
 /signspeak_FLAWED
+.env
+.env.*
+!.env.example

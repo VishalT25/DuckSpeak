@@ -2,18 +2,24 @@
  * SettingsDrawer.tsx - Settings panel for smoothing parameters
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { SmoothingOptions } from '../lib/smoothing';
 
 interface SettingsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   params: Required<SmoothingOptions> & { k: number };
-  onUpdate: (params: Partial<Required<SmoothingOptions> & { k: number }>) => void;
+  onUpdate: (params: Required<SmoothingOptions> & { k: number }) => void;
 }
 
+type DrawerParams = Required<SmoothingOptions> & { k: number };
+
 export function SettingsDrawer({ isOpen, onClose, params, onUpdate }: SettingsDrawerProps) {
-  const [localParams, setLocalParams] = useState(params);
+  const [localParams, setLocalParams] = useState<DrawerParams>(params);
+
+  useEffect(() => {
+    setLocalParams(params);
+  }, [params]);
 
   if (!isOpen) return null;
 
