@@ -47,8 +47,16 @@ export function useSpeechToText(options: UseSpeechToTextOptions = {}): UseSpeech
 
   const recognitionRef = useRef<any>(null);
   const finalTranscriptRef = useRef(''); // Keep track across re-renders
+  const onTranscriptRef = useRef(onTranscript);
+  const onErrorRef = useRef(onError);
 
-  // Check browser support
+  // Keep callback refs up to date
+  useEffect(() => {
+    onTranscriptRef.current = onTranscript;
+    onErrorRef.current = onError;
+  }, [onTranscript, onError]);
+
+  // Check browser support and initialize (only once)
   useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     setIsSupported(!!SpeechRecognition);
@@ -56,7 +64,7 @@ export function useSpeechToText(options: UseSpeechToTextOptions = {}): UseSpeech
     if (!SpeechRecognition) {
       const errMsg = 'Speech Recognition API not supported in this browser. Try Chrome or Edge.';
       setError(errMsg);
-      onError?.(errMsg);
+      onErrorRef.current?.(errMsg);
       return;
     }
 
@@ -94,10 +102,10 @@ export function useSpeechToText(options: UseSpeechToTextOptions = {}): UseSpeech
         finalTranscriptRef.current += newFinalTranscript;
         setFinalTranscript(finalTranscriptRef.current);
         setCurrentTranscript(newFinalTranscript.trim());
-        onTranscript?.(newFinalTranscript.trim(), true);
+        onTranscriptRef.current?.(newFinalTranscript.trim(), true);
       } else if (interimTranscript) {
         setCurrentTranscript(interimTranscript);
-        onTranscript?.(interimTranscript, false);
+        onTranscriptRef.current?.(interimTranscript, false);
       }
     };
 
@@ -124,7 +132,7 @@ export function useSpeechToText(options: UseSpeechToTextOptions = {}): UseSpeech
       }
 
       setError(errorMessage);
-      onError?.(errorMessage);
+      onErrorRef.current?.(errorMessage);
 
       // Auto-restart on some recoverable errors
       if (event.error === 'no-speech' && isListening) {
@@ -162,7 +170,7 @@ export function useSpeechToText(options: UseSpeechToTextOptions = {}): UseSpeech
         recognitionRef.current = null;
       }
     };
-  }, [continuous, interimResults, language, onTranscript, onError]);
+  }, [continuous, interimResults, language]); // Removed onTranscript and onError from dependencies
 
   /**
    * Start listening to speech

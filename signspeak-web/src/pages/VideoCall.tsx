@@ -7,8 +7,10 @@ import { MutableRefObject, useCallback, useEffect, useRef, useState } from 'reac
 import { LiveKitRoom } from '@livekit/components-react';
 import { useLiveKit, CaptionMessage } from '../hooks/useLiveKit';
 import { useSpeechToText } from '../hooks/useSpeechToText';
+import { useASLRecognition } from '../hooks/useASLRecognition';
 import { SignAnimator } from '../components/SignAnimator';
 import { getSignAnimation, hasSignAnimation } from '../data/signMappings';
+import { toNaturalText } from '../lib/labels';
 
 interface Caption {
   id: string;
@@ -276,6 +278,9 @@ function ConnectedVideoCall({
   const [linkCopied, setLinkCopied] = useState(false);
   const [currentSignWord, setCurrentSignWord] = useState<string>('');
   const [speechStarted, setSpeechStarted] = useState(false);
+  const [aslGesturesSent, setAslGesturesSent] = useState<Set<string>>(new Set());
+  const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
+  const localVideoElementRef = useRef<HTMLVideoElement | null>(null);
 
   const {
     localVideoRef,
@@ -292,6 +297,54 @@ function ConnectedVideoCall({
     sendCaption,
   } = useLiveKit({
     onRemoteCaptionReceived,
+  });
+
+  // Track the local video element
+  const handleLocalVideoRef = useCallback((element: HTMLVideoElement | null) => {
+    localVideoElementRef.current = element;
+    localVideoRef(element);
+  }, [localVideoRef]);
+
+  // ASL Recognition
+  const asl = useASLRecognition({
+    videoElement: localVideoElementRef.current,
+    enabled: signRecognitionMode && isConnected,
+    onGestureDetected: (label: string, confidence: number) => {
+      console.log('[VideoCall] ASL gesture detected:', label, confidence);
+
+      // Convert to natural text
+      const text = toNaturalText(label);
+
+      // Send as caption to remote participant (avoid duplicates)
+      if (!aslGesturesSent.has(label)) {
+        sendCaption(text);
+        setAslGesturesSent(prev => {
+          const newSet = new Set(prev);
+          newSet.add(label);
+          // Keep only last 50 gestures
+          if (newSet.size > 50) {
+            const entries = Array.from(newSet);
+            return new Set(entries.slice(-50));
+          }
+          return newSet;
+        });
+
+        // Add to local captions
+        sendCaptionRef.current(text);
+      }
+
+      // Clear after a delay to allow same gesture again
+      setTimeout(() => {
+        setAslGesturesSent(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(label);
+          return newSet;
+        });
+      }, 2000);
+    },
+    onError: (err) => {
+      console.error('[VideoCall] ASL recognition error:', err);
+    },
   });
 
   useEffect(() => {
@@ -329,6 +382,23 @@ function ConnectedVideoCall({
       }
     };
   }, [isConnected, signRecognitionMode, speech.isSupported]);
+
+  // Draw hand landmarks on canvas
+  useEffect(() => {
+    if (!signRecognitionMode || !overlayCanvasRef.current) return;
+
+    const drawLoop = () => {
+      if (overlayCanvasRef.current) {
+        asl.drawLandmarks(overlayCanvasRef.current);
+      }
+      if (signRecognitionMode) {
+        requestAnimationFrame(drawLoop);
+      }
+    };
+
+    const frameId = requestAnimationFrame(drawLoop);
+    return () => cancelAnimationFrame(frameId);
+  }, [signRecognitionMode, asl]);
 
   // Extract sign words from captions
   useEffect(() => {
@@ -407,7 +477,7 @@ function ConnectedVideoCall({
               ...styles.controlBtn,
               ...(signRecognitionMode && styles.controlBtnActive),
             }}
-            title="Toggle sign recognition mode (Coming soon: Use Recognize tab for ASL)"
+            title={signRecognitionMode ? 'Disable sign recognition' : 'Enable sign recognition (requires trained model)'}
           >
             🤟
           </button>
@@ -437,8 +507,17 @@ function ConnectedVideoCall({
       )}
 
       {signRecognitionMode && (
-        <div style={styles.infoBanner}>
-          ℹ️ Sign Recognition Mode: Speech captions disabled. Full ASL recognition coming soon - use the "Recognize" tab for trained ASL detection.
+        <div style={asl.isModelLoaded ? styles.successBanner : styles.infoBanner}>
+          {asl.isModelLoaded ? (
+            <>
+              ✅ Sign Recognition Active: {asl.handsDetected ? 'Hands detected' : 'Show your hands to sign'}
+              {asl.currentLabel && ` - Detected: ${toNaturalText(asl.currentLabel)} (${Math.round(asl.confidence * 100)}%)`}
+            </>
+          ) : asl.error ? (
+            <>⚠️ {asl.error}</>
+          ) : (
+            <>⏳ Loading ASL model...</>
+          )}
         </div>
       )}
 
@@ -454,12 +533,28 @@ function ConnectedVideoCall({
         <div style={styles.videoCard}>
           <div style={styles.videoContainer}>
             <video
-              ref={localVideoRef}
+              ref={handleLocalVideoRef}
               autoPlay
               muted
               playsInline
               style={styles.video}
             />
+            {/* Hand landmark overlay for ASL recognition */}
+            {signRecognitionMode && (
+              <canvas
+                ref={overlayCanvasRef}
+                width={640}
+                height={480}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  pointerEvents: 'none',
+                }}
+              />
+            )}
             <div style={styles.videoLabel}>
               {participantName} (You)
             </div>
@@ -470,7 +565,7 @@ function ConnectedVideoCall({
             )}
             {signRecognitionMode && (
               <div style={styles.signModeIndicator}>
-                🤟 Sign Mode
+                🤟 Sign Mode {asl.handsDetected && '✋'}
               </div>
             )}
           </div>
@@ -805,6 +900,13 @@ const styles = {
     background: 'rgba(0, 136, 255, 0.2)',
     borderBottom: '1px solid rgba(0, 136, 255, 0.4)',
     color: '#66ccff',
+    fontSize: '14px',
+  } as const,
+  successBanner: {
+    padding: '12px 24px',
+    background: 'rgba(0, 255, 136, 0.2)',
+    borderBottom: '1px solid rgba(0, 255, 136, 0.4)',
+    color: '#7effa8',
     fontSize: '14px',
   } as const,
   videoGrid: {
