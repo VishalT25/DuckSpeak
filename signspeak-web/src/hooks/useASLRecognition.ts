@@ -146,39 +146,55 @@ export function useASLRecognition(options: UseASLRecognitionOptions = {}): UseAS
       return;
     }
 
+    // Check if video is ready (has valid dimensions and is playing)
+    if (!videoElement.videoWidth || !videoElement.videoHeight || videoElement.readyState < 2) {
+      // Video not ready yet, skip this frame
+      animationFrameRef.current = requestAnimationFrame(processFrame);
+      return;
+    }
+
     const detector = detectorRef.current;
     const classifier = classifierRef.current;
 
-    // Detect landmarks
-    const timestamp = performance.now();
-    const landmarks = detector.detectLandmarks(videoElement, timestamp);
-    landmarksRef.current = landmarks;
+    try {
+      // Detect landmarks
+      const timestamp = performance.now();
+      const landmarks = detector.detectLandmarks(videoElement, timestamp);
+      landmarksRef.current = landmarks;
 
-    if (landmarks.length > 0) {
-      setHandsDetected(true);
+      if (landmarks.length > 0) {
+        setHandsDetected(true);
 
-      // Extract features and predict (handles 1 or 2 hands)
-      const features = toMultiHandFeatureVector(landmarks, false);
-      const result = classifier.predict(features);
+        // Extract features and predict (handles 1 or 2 hands)
+        const features = toMultiHandFeatureVector(landmarks, false);
+        const result = classifier.predict(features);
 
-      if (result) {
-        setCurrentLabel(result.label);
-        setConfidence(result.confidence);
+        if (result) {
+          setCurrentLabel(result.label);
+          setConfidence(result.confidence);
 
-        // Trigger callback only on new label
-        if (result.label !== lastDetectedLabelRef.current) {
-          lastDetectedLabelRef.current = result.label;
-          onGestureDetectedRef.current?.(result.label, result.confidence);
+          // Trigger callback only on new label
+          if (result.label !== lastDetectedLabelRef.current) {
+            lastDetectedLabelRef.current = result.label;
+            onGestureDetectedRef.current?.(result.label, result.confidence);
+          }
+        } else {
+          setCurrentLabel(null);
+          setConfidence(0);
         }
       } else {
+        setHandsDetected(false);
         setCurrentLabel(null);
         setConfidence(0);
+        landmarksRef.current = [];
       }
-    } else {
+    } catch (err) {
+      console.error('[ASL Recognition] Detection error:', err);
+      // Don't set error state, just skip this frame
+      landmarksRef.current = [];
       setHandsDetected(false);
       setCurrentLabel(null);
       setConfidence(0);
-      landmarksRef.current = [];
     }
 
     animationFrameRef.current = requestAnimationFrame(processFrame);

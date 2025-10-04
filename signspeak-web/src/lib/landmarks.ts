@@ -55,6 +55,11 @@ export class LandmarkDetector {
       return [];
     }
 
+    // Validate video element has valid dimensions
+    if (!video.videoWidth || !video.videoHeight || video.readyState < 2) {
+      return [];
+    }
+
     try {
       const result: HandLandmarkerResult = this.handLandmarker.detectForVideo(video, timestamp);
 
