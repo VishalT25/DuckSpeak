@@ -29,6 +29,7 @@ export function VideoCall() {
   const [participantName, setParticipantName] = useState('');
   const [shareableLink, setShareableLink] = useState('');
   const [serverUrl, setServerUrl] = useState('');
+  const [tokenInput, setTokenInput] = useState('');
 
   const captionsSentRef = useRef<Set<string>>(new Set());
   const sendCaptionRef = useRef<(text: string) => void>(() => {
@@ -77,60 +78,67 @@ export function VideoCall() {
     setError(null);
 
     try {
-      let token: string;
+      let token: string | null = null;
       let resolvedServerUrl = serverUrl.trim();
 
-      // Get token from API or environment
-      try {
-        // Try API token endpoint first (production)
-        const response = await fetch('/api/token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            roomName: roomName,
-            participantName: participantName.trim(),
-            metadata: JSON.stringify({ role: 'participant' }),
-          }),
-        });
+      if (tokenInput.trim()) {
+        token = tokenInput.trim();
+      }
 
-        if (!response.ok) {
-          throw new Error('Failed to fetch token from API');
-        }
+      if (!token) {
+        try {
+          const response = await fetch('/api/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              roomName,
+              participantName: participantName.trim(),
+              metadata: JSON.stringify({ role: 'participant' }),
+            }),
+          });
 
-        const data = await response.json();
-        if (!data?.token) {
-          throw new Error('Token server returned an empty response');
-        }
-        token = data.token;
-        const urlFromApi = typeof data.url === 'string' && data.url.length > 0
-          ? data.url
-          : typeof data.serverUrl === 'string' && data.serverUrl.length > 0
-            ? data.serverUrl
-            : undefined;
-        if (urlFromApi) {
-          resolvedServerUrl = urlFromApi;
-        }
-      } catch (apiError) {
-        // Fallback to environment variable for local dev
-        console.log('[VideoCall] API token failed, trying env variable:', apiError);
-        const envToken = getLiveKitToken();
-        if (!envToken) {
-          throw new Error('No token available. Please configure your LiveKit credentials');
-        }
-        token = envToken;
+          if (!response.ok) {
+            throw new Error(`Failed to fetch token from API (status ${response.status})`);
+          }
 
-        // Resolve server URL locally as well
-        const envUrl = getLiveKitUrl();
-        resolvedServerUrl = envUrl;
+          const data = await response.json();
+
+          if (typeof data?.token === 'string' && data.token.length > 0) {
+            token = data.token;
+          }
+
+          const urlFromApi = typeof data?.url === 'string' && data.url.length > 0
+            ? data.url
+            : typeof data?.serverUrl === 'string' && data.serverUrl.length > 0
+              ? data.serverUrl
+              : undefined;
+
+          if (urlFromApi) {
+            resolvedServerUrl = urlFromApi;
+          }
+        } catch (apiError) {
+          console.warn('[VideoCall] Token API unavailable, attempting local env fallbacks.', apiError);
+        }
+      }
+
+      if (!token) {
+        token = getLiveKitToken({ tokenOverride: tokenInput });
       }
 
       if (!resolvedServerUrl) {
-        throw new Error('LiveKit server URL not configured. Set LIVEKIT_URL on your token service or provide VITE_LIVEKIT_URL for local dev.');
+        try {
+          resolvedServerUrl = getLiveKitUrl();
+        } catch (urlError) {
+          console.warn('[VideoCall] LiveKit URL not found in environment.', urlError);
+        }
+      }
+
+      if (!resolvedServerUrl) {
+        throw new Error('LiveKit server URL not configured. Set LIVEKIT_URL on your token service or provide VITE_LIVEKIT_URL or the manual URL value below.');
       }
 
       setServerUrl(resolvedServerUrl);
 
-      // Generate shareable link
       const currentUrl = window.location.origin + window.location.pathname;
       const link = `${currentUrl}?room=${encodeURIComponent(roomName)}`;
       setShareableLink(link);
@@ -214,6 +222,19 @@ export function VideoCall() {
             />
             <p style={styles.hint}>
               A random room name has been generated. You can change it or keep the default.
+            </p>
+          </div>
+
+          <div style={styles.inputGroup}>
+            <label style={styles.label}>LiveKit Access Token (optional)</label>
+            <textarea
+              value={tokenInput}
+              onChange={(e) => setTokenInput(e.target.value)}
+              placeholder="Paste a LiveKit access token here if you generated one manually"
+              style={{ ...styles.input, minHeight: '80px', resize: 'vertical' as const }}
+            />
+            <p style={styles.hint}>
+              Leave blank to request a token from `/api/token`.
             </p>
           </div>
 
