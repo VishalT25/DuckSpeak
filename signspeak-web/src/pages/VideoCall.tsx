@@ -391,13 +391,15 @@ function ConnectedVideoCall({
     videoElement: localVideoElementRef.current,
     enabled: signRecognitionMode && isConnected,
     onGestureDetected: (label: string, confidence: number) => {
-      console.log('[VideoCall] ASL gesture detected:', label, confidence);
+      console.log('[VideoCall] 🤟 ASL gesture detected:', label, 'confidence:', confidence);
 
       // Convert to natural text
       const text = toNaturalText(label);
+      console.log('[VideoCall] 📝 Translated to:', text);
 
       // Send as caption to remote participant (avoid duplicates)
       if (!aslGesturesSent.has(label)) {
+        console.log('[VideoCall] 📤 Sending ASL translation to remote participants:', text);
         sendCaption(text);
         setAslGesturesSent(prev => {
           const newSet = new Set(prev);
@@ -412,6 +414,9 @@ function ConnectedVideoCall({
 
         // Add to local captions
         sendCaptionRef.current(text);
+        console.log('[VideoCall] ✅ ASL translation sent successfully');
+      } else {
+        console.log('[VideoCall] ⏭️ Skipping duplicate gesture:', label);
       }
 
       // Clear after a delay to allow same gesture again
@@ -588,16 +593,21 @@ function ConnectedVideoCall({
       )}
 
       {signRecognitionMode && (
-        <div style={asl.isModelLoaded ? styles.successBanner : styles.infoBanner}>
+        <div style={asl.isModelLoaded ? styles.successBanner : (asl.error ? styles.errorBanner : styles.infoBanner)}>
           {asl.isModelLoaded ? (
             <>
-              ✅ Sign Recognition Active: {asl.handsDetected ? 'Hands detected' : 'Show your hands to sign'}
-              {asl.currentLabel && ` - Detected: ${toNaturalText(asl.currentLabel)} (${Math.round(asl.confidence * 100)}%)`}
+              ✅ <strong>ASL Translation Active</strong> - {asl.handsDetected ? '✋ Hands detected!' : 'Show your hands to sign'}
+              {asl.currentLabel && ` - Translating: "${toNaturalText(asl.currentLabel)}" (${Math.round(asl.confidence * 100)}% confidence)`}
             </>
           ) : asl.error ? (
-            <>⚠️ {asl.error}</>
+            <>
+              ⚠️ <strong>{asl.error}</strong>
+              {asl.error.includes('No trained model') && (
+                <> - Go to the <strong>Collect & Train</strong> tab to create a model first!</>
+              )}
+            </>
           ) : (
-            <>⏳ Loading ASL model...</>
+            <>⏳ Loading your trained ASL model from Collect & Train tab...</>
           )}
         </div>
       )}
