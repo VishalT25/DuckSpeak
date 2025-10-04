@@ -85,9 +85,10 @@ export function VideoCall() {
         token = tokenInput.trim();
       }
 
-      if (!token) {
+     if (!token) {
         try {
-          const response = await fetch('/api/token', {
+          const tokenEndpoint = import.meta.env.DEV ? '/.netlify/functions/token' : '/api/token';
+          const response = await fetch(tokenEndpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -297,7 +298,18 @@ export function VideoCall() {
       video
       audio
       onConnected={() => setIsConnecting(false)}
-      onDisconnected={() => handleLeaveCall()}
+      onDisconnected={(reason) => {
+        const message = typeof reason === 'string'
+          ? reason
+          : reason?.toString() || 'Disconnected from LiveKit.';
+        setError(message);
+        handleLeaveCall();
+      }}
+      onError={(err) => {
+        console.error('[LiveKitRoom] error', err);
+        setError(err instanceof Error ? err.message : 'LiveKit error occurred.');
+        handleLeaveCall();
+      }}
     >
       <ConnectedVideoCall
         speech={speech}
