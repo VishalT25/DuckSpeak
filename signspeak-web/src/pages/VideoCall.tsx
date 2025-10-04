@@ -8,7 +8,6 @@ import { LiveKitRoom } from '@livekit/components-react';
 import { useLiveKit } from '../hooks/useLiveKit';
 import { useSpeechToText } from '../hooks/useSpeechToText';
 import { SignAnimator } from '../components/SignAnimator';
-import { getLiveKitToken, getLiveKitUrl } from '../utils/livekitToken';
 
 interface ConnectedVideoCallProps {
   speech: ReturnType<typeof useSpeechToText>;
@@ -29,7 +28,6 @@ export function VideoCall() {
   const [participantName, setParticipantName] = useState('');
   const [shareableLink, setShareableLink] = useState('');
   const [serverUrl, setServerUrl] = useState('');
-  const [tokenInput, setTokenInput] = useState('');
 
   const captionsSentRef = useRef<Set<string>>(new Set());
   const sendCaptionRef = useRef<(text: string) => void>(() => {
@@ -78,77 +76,43 @@ export function VideoCall() {
     setError(null);
 
     try {
-      let token: string | null = null;
-      let resolvedServerUrl = serverUrl.trim();
+      // Get token from API
+      const tokenEndpoint = import.meta.env.DEV ? '/.netlify/functions/token' : '/api/token';
+      const response = await fetch(tokenEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roomName,
+          participantName: participantName.trim(),
+          metadata: JSON.stringify({ role: 'participant' }),
+        }),
+      });
 
-      if (tokenInput.trim()) {
-        token = tokenInput.trim();
+      if (!response.ok) {
+        throw new Error(`Failed to fetch token from API (status ${response.status})`);
       }
 
-     if (!token) {
-        try {
-          const tokenEndpoint = import.meta.env.DEV ? '/.netlify/functions/token' : '/api/token';
-          const response = await fetch(tokenEndpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              roomName,
-              participantName: participantName.trim(),
-              metadata: JSON.stringify({ role: 'participant' }),
-            }),
-          });
+      const data = await response.json();
 
-          if (!response.ok) {
-            throw new Error(`Failed to fetch token from API (status ${response.status})`);
-          }
-
-          const data = await response.json();
-
-          if (typeof data?.token === 'string' && data.token.length > 0) {
-            token = data.token;
-          }
-
-          const urlFromApi = typeof data?.url === 'string' && data.url.length > 0
-            ? data.url
-            : typeof data?.serverUrl === 'string' && data.serverUrl.length > 0
-              ? data.serverUrl
-              : undefined;
-
-          if (urlFromApi) {
-            resolvedServerUrl = urlFromApi;
-          }
-        } catch (apiError) {
-          console.warn('[VideoCall] Token API unavailable, attempting local env fallbacks.', apiError);
-        }
+      if (!data.token) {
+        throw new Error('No token received from server');
       }
 
-      if (!token) {
-        try {
-          token = getLiveKitToken({ tokenOverride: tokenInput });
-        } catch (tokenError) {
-          throw new Error('LiveKit access token not available. Paste one above or configure the token service.');
-        }
-      }
+      // Get server URL from API response or fallback to env variable
+      const resolvedServerUrl = data.serverUrl || data.url || import.meta.env.VITE_LIVEKIT_URL;
 
       if (!resolvedServerUrl) {
-        try {
-          resolvedServerUrl = getLiveKitUrl();
-        } catch (urlError) {
-          console.warn('[VideoCall] LiveKit URL not found in environment.', urlError);
-        }
-      }
-
-      if (!resolvedServerUrl) {
-        throw new Error('LiveKit server URL not configured. Set LIVEKIT_URL on your token service or provide VITE_LIVEKIT_URL or the manual URL value below.');
+        throw new Error('LiveKit server URL not configured');
       }
 
       setServerUrl(resolvedServerUrl);
 
+      // Generate shareable link
       const currentUrl = window.location.origin + window.location.pathname;
       const link = `${currentUrl}?room=${encodeURIComponent(roomName)}`;
       setShareableLink(link);
 
-      setConnectionToken(token);
+      setConnectionToken(data.token);
     } catch (err) {
       setError((err as Error).message);
       setIsConnecting(false);
@@ -180,19 +144,6 @@ export function VideoCall() {
     speech.stopListening();
     resetSessionState();
   }, [resetSessionState, speech]);
-
-  useEffect(() => {
-    if (serverUrl) {
-      return;
-    }
-
-    try {
-      const resolved = getLiveKitUrl();
-      setServerUrl(resolved);
-    } catch (err) {
-      console.warn('[VideoCall] LiveKit URL not set in environment:', err);
-    }
-  }, [serverUrl]);
 
   if (!connectionToken) {
     return (
@@ -227,33 +178,6 @@ export function VideoCall() {
             />
             <p style={styles.hint}>
               A random room name has been generated. You can change it or keep the default.
-            </p>
-          </div>
-
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>LiveKit Access Token (optional)</label>
-            <textarea
-              value={tokenInput}
-              onChange={(e) => setTokenInput(e.target.value)}
-              placeholder="Paste a LiveKit access token here if you generated one manually"
-              style={{ ...styles.input, minHeight: '80px', resize: 'vertical' as const }}
-            />
-            <p style={styles.hint}>
-              Leave blank to request a token from `/api/token`.
-            </p>
-          </div>
-
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>LiveKit Server URL</label>
-            <input
-              type="text"
-              value={serverUrl}
-              onChange={(e) => setServerUrl(e.target.value)}
-              placeholder="wss://your-livekit-domain.example"
-              style={styles.input}
-            />
-            <p style={styles.hint}>
-              Leave blank if your `/api/token` endpoint injects the URL automatically.
             </p>
           </div>
 
