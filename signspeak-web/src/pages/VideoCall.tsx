@@ -588,6 +588,18 @@ function ConnectedVideoCall({
               </div>
             </div>
           )}
+
+          {/* ASL Recognition Display - Current gesture being recognized */}
+          {signRecognitionMode && asl.currentLabel && (
+            <div style={styles.aslRecognitionDisplay}>
+              <div style={styles.aslGestureLabel}>
+                {toNaturalText(asl.currentLabel)}
+              </div>
+              <div style={styles.aslConfidence}>
+                {Math.round(asl.confidence * 100)}% confident
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Remote video */}
@@ -1046,6 +1058,33 @@ const styles = {
     borderRadius: '8px',
     fontSize: '14px',
     color: '#7effa8',
+  } as const,
+  aslRecognitionDisplay: {
+    position: 'absolute' as const,
+    bottom: '80px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    background: 'rgba(0, 255, 136, 0.95)',
+    backdropFilter: 'blur(10px)',
+    padding: '16px 24px',
+    borderRadius: '16px',
+    border: '2px solid rgba(0, 255, 136, 1)',
+    boxShadow: '0 8px 32px rgba(0, 255, 136, 0.4)',
+    zIndex: 10,
+    animation: 'scaleIn 0.3s ease',
+  } as const,
+  aslGestureLabel: {
+    fontSize: '24px',
+    fontWeight: 'bold' as const,
+    color: '#000',
+    textAlign: 'center' as const,
+    marginBottom: '4px',
+  } as const,
+  aslConfidence: {
+    fontSize: '12px',
+    color: '#004d26',
+    textAlign: 'center' as const,
+    fontWeight: '600' as const,
   } as const,
   captionSidebar: {
     position: 'absolute' as const,

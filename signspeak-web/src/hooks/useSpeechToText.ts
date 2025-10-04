@@ -77,9 +77,9 @@ export function useSpeechToText(options: UseSpeechToTextOptions = {}): UseSpeech
 
     // Event handlers
     recognition.onstart = () => {
-      console.log('[SpeechToText] Started listening');
+      console.log('[SpeechToText] Started listening - speech recognition active');
       setIsListening(true);
-      setError(null);
+      setError(null); // Clear any previous errors
     };
 
     recognition.onresult = (event: any) => {
@@ -114,9 +114,13 @@ export function useSpeechToText(options: UseSpeechToTextOptions = {}): UseSpeech
 
       // Handle different error types
       let errorMessage = '';
+      let isCritical = true;
+
       switch (event.error) {
         case 'no-speech':
-          errorMessage = 'No speech detected. Try speaking louder.';
+          // Not critical - just no speech detected
+          isCritical = false;
+          console.log('[SpeechToText] No speech detected, will retry');
           break;
         case 'audio-capture':
           errorMessage = 'Microphone not accessible. Check permissions.';
@@ -125,23 +129,32 @@ export function useSpeechToText(options: UseSpeechToTextOptions = {}): UseSpeech
           errorMessage = 'Microphone permission denied.';
           break;
         case 'network':
-          errorMessage = 'Network error occurred.';
+          // Network errors happen sometimes, don't show to user
+          isCritical = false;
+          console.warn('[SpeechToText] Network error (usually temporary)');
+          break;
+        case 'aborted':
+          // Aborted is normal when stopping
+          isCritical = false;
           break;
         default:
           errorMessage = `Speech recognition error: ${event.error}`;
       }
 
-      setError(errorMessage);
-      onErrorRef.current?.(errorMessage);
+      if (isCritical && errorMessage) {
+        setError(errorMessage);
+        onErrorRef.current?.(errorMessage);
+      }
 
-      // Auto-restart on some recoverable errors
-      if (event.error === 'no-speech' && isListening) {
+      // Auto-restart on recoverable errors
+      if ((event.error === 'no-speech' || event.error === 'network') && isListening) {
         setTimeout(() => {
           if (recognitionRef.current && isListening) {
             try {
+              console.log(`[SpeechToText] Auto-restarting after ${event.error} error`);
               recognition.start();
             } catch (err) {
-              console.log('[SpeechToText] Could not restart after no-speech error');
+              console.log('[SpeechToText] Could not restart:', err);
             }
           }
         }, 1000);
