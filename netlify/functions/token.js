@@ -1,9 +1,9 @@
 /**
  * Netlify Serverless Function - LiveKit Token Generation
- * Generates secure access tokens for LiveKit rooms
+ * Generates secure access tokens for LiveKit rooms using jsonwebtoken
  */
 
-const { AccessToken } = require('livekit-server-sdk');
+const jwt = require('jsonwebtoken');
 
 exports.handler = async function(event) {
   // Only allow POST requests
@@ -42,27 +42,36 @@ exports.handler = async function(event) {
       console.error('LiveKit credentials not configured');
       return {
         statusCode: 500,
-        body: JSON.stringify({ error: 'Server configuration error' })
+        body: JSON.stringify({ error: 'Server configuration error: API keys missing' })
       };
     }
 
-    // Create access token
-    const at = new AccessToken(apiKey, apiSecret, {
-      identity: participantName,
+    // Create JWT payload for LiveKit
+    const now = Math.floor(Date.now() / 1000);
+    const payload = {
+      sub: participantName,
+      iss: apiKey,
+      exp: now + 86400, // 24 hours
+      nbf: now - 60, // Valid from 1 minute ago
+      video: {
+        room: roomName,
+        roomJoin: true,
+        canPublish: true,
+        canSubscribe: true,
+        canPublishData: true,
+      },
       metadata: metadata || '',
-    });
+      name: participantName,
+    };
 
-    // Grant permissions
-    at.addGrant({
-      room: roomName,
-      roomJoin: true,
-      canPublish: true,
-      canSubscribe: true,
-      canPublishData: true,
+    // Generate JWT token
+    const token = jwt.sign(payload, apiSecret, {
+      algorithm: 'HS256',
+      header: {
+        typ: 'JWT',
+        alg: 'HS256',
+      },
     });
-
-    // Generate JWT
-    const token = await at.toJwt();
 
     // Return token
     return {
@@ -90,8 +99,7 @@ exports.handler = async function(event) {
       statusCode: 500,
       body: JSON.stringify({
         error: 'Failed to generate token',
-        message: error.message,
-        stack: error.stack
+        message: error.message
       })
     };
   }
