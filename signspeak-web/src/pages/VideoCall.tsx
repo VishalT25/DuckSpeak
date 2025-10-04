@@ -122,7 +122,11 @@ export function VideoCall() {
       }
 
       if (!token) {
-        token = getLiveKitToken({ tokenOverride: tokenInput });
+        try {
+          token = getLiveKitToken({ tokenOverride: tokenInput });
+        } catch (tokenError) {
+          throw new Error('LiveKit access token not available. Paste one above or configure the token service.');
+        }
       }
 
       if (!resolvedServerUrl) {
