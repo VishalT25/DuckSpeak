@@ -55,14 +55,22 @@ Click the **"Video Call"** button in the navigation header.
 
 ### 3. Connect to a LiveKit Room
 1. Copy `.env.example` to `.env.local` and fill in the secure values (file stays local and is git-ignored).
-   - `VITE_LIVEKIT_URL` → `wss://duckspeak-jk56pxsb.livekit.cloud`
-   - `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` → provided via secure channel (never commit).
+   - `VITE_LIVEKIT_URL` → optional; use only for local dev.
+   - `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET` → your private LiveKit credentials (never commit).
 2. Generate a short-lived access token whenever you start a session:
    ```bash
    npm run generate:token -- [identity] [room]
    ```
    The command reads your local `.env.local`, prints a JWT, and you can paste it into the join screen.
 3. Click **"Join Call"** (leave the token field empty to reuse `VITE_LIVEKIT_TOKEN` if you exported one).
+
+### Netlify Deployment Notes
+1. In Netlify, open *Site configuration → Environment variables* and add:
+   - `LIVEKIT_URL=wss://<your-livekit-domain>`
+   - `LIVEKIT_API_KEY=...` and `LIVEKIT_API_SECRET=...` (kept private on the server).
+   - Optionally leave `VITE_LIVEKIT_URL` empty; it’s only needed for local builds.
+2. Redeploy the site so Vite picks up the new values at build time.
+3. Implement a Netlify Function (or any backend endpoint) at `/api/token` that uses those server-side env vars to mint LiveKit JWTs; the front-end now requests tokens there automatically.
 
 ### 4. Start Speaking
 - Speech recognition starts automatically when you join

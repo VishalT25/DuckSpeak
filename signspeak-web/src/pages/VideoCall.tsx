@@ -8,7 +8,7 @@ import { LiveKitRoom } from '@livekit/components-react';
 import { useLiveKit } from '../hooks/useLiveKit';
 import { useSpeechToText } from '../hooks/useSpeechToText';
 import { SignAnimator } from '../components/SignAnimator';
-import { getLiveKitToken } from '../utils/livekitToken';
+import { getLiveKitToken, getLiveKitUrl } from '../utils/livekitToken';
 
 interface ConnectedVideoCallProps {
   speech: ReturnType<typeof useSpeechToText>;
@@ -28,13 +28,12 @@ export function VideoCall() {
   const [roomName, setRoomName] = useState('');
   const [participantName, setParticipantName] = useState('');
   const [shareableLink, setShareableLink] = useState('');
+  const [serverUrl, setServerUrl] = useState('');
 
   const captionsSentRef = useRef<Set<string>>(new Set());
   const sendCaptionRef = useRef<(text: string) => void>(() => {
     console.warn('[VideoCall] Caption sender not ready yet.');
   });
-
-  const serverUrl = import.meta.env.VITE_LIVEKIT_URL ?? '';
 
   // Generate random room ID on mount
   useEffect(() => {
@@ -69,11 +68,6 @@ export function VideoCall() {
   }, []);
 
   const handleJoinCall = async () => {
-    if (!serverUrl) {
-      setError('LiveKit server URL not configured. Set VITE_LIVEKIT_URL to continue.');
-      return;
-    }
-
     if (!participantName.trim()) {
       setError('Please enter your name');
       return;
@@ -84,6 +78,7 @@ export function VideoCall() {
 
     try {
       let token: string;
+      let resolvedServerUrl = serverUrl.trim();
 
       // Get token from API or environment
       try {
@@ -103,7 +98,18 @@ export function VideoCall() {
         }
 
         const data = await response.json();
+        if (!data?.token) {
+          throw new Error('Token server returned an empty response');
+        }
         token = data.token;
+        const urlFromApi = typeof data.url === 'string' && data.url.length > 0
+          ? data.url
+          : typeof data.serverUrl === 'string' && data.serverUrl.length > 0
+            ? data.serverUrl
+            : undefined;
+        if (urlFromApi) {
+          resolvedServerUrl = urlFromApi;
+        }
       } catch (apiError) {
         // Fallback to environment variable for local dev
         console.log('[VideoCall] API token failed, trying env variable:', apiError);
@@ -112,7 +118,17 @@ export function VideoCall() {
           throw new Error('No token available. Please configure your LiveKit credentials');
         }
         token = envToken;
+
+        // Resolve server URL locally as well
+        const envUrl = getLiveKitUrl();
+        resolvedServerUrl = envUrl;
       }
+
+      if (!resolvedServerUrl) {
+        throw new Error('LiveKit server URL not configured. Set LIVEKIT_URL on your token service or provide VITE_LIVEKIT_URL for local dev.');
+      }
+
+      setServerUrl(resolvedServerUrl);
 
       // Generate shareable link
       const currentUrl = window.location.origin + window.location.pathname;
@@ -152,6 +168,19 @@ export function VideoCall() {
     resetSessionState();
   }, [resetSessionState, speech]);
 
+  useEffect(() => {
+    if (serverUrl) {
+      return;
+    }
+
+    try {
+      const resolved = getLiveKitUrl();
+      setServerUrl(resolved);
+    } catch (err) {
+      console.warn('[VideoCall] LiveKit URL not set in environment:', err);
+    }
+  }, [serverUrl]);
+
   if (!connectionToken) {
     return (
       <div style={styles.joinContainer}>
@@ -185,6 +214,20 @@ export function VideoCall() {
             />
             <p style={styles.hint}>
               A random room name has been generated. You can change it or keep the default.
+            </p>
+          </div>
+
+          <div style={styles.inputGroup}>
+            <label style={styles.label}>LiveKit Server URL</label>
+            <input
+              type="text"
+              value={serverUrl}
+              onChange={(e) => setServerUrl(e.target.value)}
+              placeholder="wss://your-livekit-domain.example"
+              style={styles.input}
+            />
+            <p style={styles.hint}>
+              Leave blank if your `/api/token` endpoint injects the URL automatically.
             </p>
           </div>
 

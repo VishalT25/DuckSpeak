@@ -36,7 +36,7 @@ export async function handler(event) {
     // Get LiveKit credentials from environment
     const apiKey = process.env.LIVEKIT_API_KEY;
     const apiSecret = process.env.LIVEKIT_API_SECRET;
-    const livekitUrl = process.env.VITE_LIVEKIT_URL || process.env.LIVEKIT_URL;
+    const livekitUrl = process.env.LIVEKIT_URL || process.env.VITE_LIVEKIT_URL;
 
     if (!apiKey || !apiSecret) {
       console.error('LiveKit credentials not configured');

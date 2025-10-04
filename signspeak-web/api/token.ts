@@ -27,6 +27,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Get LiveKit credentials from environment
     const apiKey = process.env.LIVEKIT_API_KEY;
     const apiSecret = process.env.LIVEKIT_API_SECRET;
+    const serverUrl = process.env.LIVEKIT_URL || process.env.VITE_LIVEKIT_URL;
 
     if (!apiKey || !apiSecret) {
       console.error('LiveKit credentials not configured');
@@ -54,7 +55,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Return token
     return res.status(200).json({
       token,
-      serverUrl: process.env.VITE_LIVEKIT_URL || process.env.LIVEKIT_URL,
+      serverUrl,
     });
   } catch (error) {
     console.error('Token generation error:', error);

@@ -16,7 +16,7 @@ export function getLiveKitUrl(): string {
 
   if (!url) {
     throw new Error(
-      'LiveKit server URL not configured. Please set VITE_LIVEKIT_URL in your environment.'
+      'LiveKit server URL not configured. For local dev set VITE_LIVEKIT_URL in your .env.local file.'
     );
   }
 

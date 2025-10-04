@@ -2,6 +2,7 @@
 # Deploy command: Just push to GitHub and connect to Netlify
 
 [build]
+  base = "signspeak-web"
   command = "npm run build"
   publish = "dist"
 
