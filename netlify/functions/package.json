@@ -1,7 +1,6 @@
 {
   "name": "netlify-functions",
   "version": "1.0.0",
-  "type": "module",
   "dependencies": {
     "livekit-server-sdk": "^2.7.2"
   }

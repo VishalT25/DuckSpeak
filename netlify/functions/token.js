@@ -3,9 +3,9 @@
  * Generates secure access tokens for LiveKit rooms
  */
 
-import { AccessToken } from 'livekit-server-sdk';
+const { AccessToken } = require('livekit-server-sdk');
 
-export async function handler(event) {
+exports.handler = async function(event) {
   // Only allow POST requests
   if (event.httpMethod !== 'POST') {
     return {
@@ -80,12 +80,19 @@ export async function handler(event) {
     };
   } catch (error) {
     console.error('Token generation error:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Environment check:', {
+      hasApiKey: !!process.env.LIVEKIT_API_KEY,
+      hasApiSecret: !!process.env.LIVEKIT_API_SECRET,
+      hasUrl: !!(process.env.VITE_LIVEKIT_URL || process.env.LIVEKIT_URL)
+    });
     return {
       statusCode: 500,
       body: JSON.stringify({
         error: 'Failed to generate token',
-        message: error.message
+        message: error.message,
+        stack: error.stack
       })
     };
   }
-}
+};
