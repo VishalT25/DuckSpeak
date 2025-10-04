@@ -4,13 +4,14 @@
  */
 
 import { MutableRefObject, useCallback, useEffect, useRef, useState } from 'react';
-import { LiveKitRoom } from '@livekit/components-react';
+import { LiveKitRoom, useParticipants } from '@livekit/components-react';
 import { useLiveKit, CaptionMessage } from '../hooks/useLiveKit';
 import { useSpeechToText } from '../hooks/useSpeechToText';
 import { useASLRecognition } from '../hooks/useASLRecognition';
 import { SignAnimator } from '../components/SignAnimator';
 import { getSignAnimation, hasSignAnimation } from '../data/signMappings';
 import { toNaturalText } from '../lib/labels';
+import { Track } from 'livekit-client';
 
 interface Caption {
   id: string;
@@ -252,6 +253,87 @@ export function VideoCall() {
   );
 }
 
+interface RemoteParticipantsProps {
+  latestRemoteCaption: Caption | undefined;
+  currentSignWord: string;
+  linkCopied: boolean;
+  copyLinkToClipboard: () => void;
+}
+
+function RemoteParticipants({ latestRemoteCaption, currentSignWord, linkCopied, copyLinkToClipboard }: RemoteParticipantsProps) {
+  const participants = useParticipants();
+  const remoteParticipants = participants.filter(p => p.isLocal === false);
+
+  // If no remote participants, show waiting message
+  if (remoteParticipants.length === 0) {
+    return (
+      <div style={styles.videoCard}>
+        <div style={styles.videoContainer}>
+          <div style={styles.video} />
+          <div style={styles.videoLabel}>Waiting for others...</div>
+          <div style={styles.waitingOverlay}>
+            <div style={styles.waitingText}>
+              <div style={styles.spinner}></div>
+              <p>Waiting for someone to join...</p>
+              <button onClick={copyLinkToClipboard} style={styles.shareButton}>
+                {linkCopied ? '✅ Copied!' : '🔗 Share Link'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show all remote participants
+  return (
+    <>
+      {remoteParticipants.map((participant) => {
+        const videoTrack = participant.getTrackPublication(Track.Source.Camera)?.videoTrack;
+
+        return (
+          <div key={participant.identity} style={styles.videoCard}>
+            <div style={styles.videoContainer}>
+              <video
+                ref={(el) => {
+                  if (el && videoTrack) {
+                    videoTrack.attach(el);
+                  }
+                }}
+                autoPlay
+                playsInline
+                style={styles.video}
+              />
+              <div style={styles.videoLabel}>
+                {participant.name || participant.identity}
+              </div>
+
+              {/* Remote captions display */}
+              {latestRemoteCaption && (
+                <div style={styles.captionOverlay}>
+                  <div style={{ ...styles.captionBubble, ...styles.remoteCaptionBubble }}>
+                    💬 {latestRemoteCaption.text}
+                  </div>
+                </div>
+              )}
+
+              {/* Sign animator for remote */}
+              {currentSignWord && latestRemoteCaption?.sender === 'remote' && (
+                <div style={styles.signDisplay}>
+                  <SignAnimator caption={currentSignWord} isActive={true} />
+                  <div style={styles.signLabel}>
+                    {getSignAnimation(currentSignWord).description}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
 interface ConnectedVideoCallProps {
   speech: ReturnType<typeof useSpeechToText>;
   captions: Caption[];
@@ -284,7 +366,6 @@ function ConnectedVideoCall({
 
   const {
     localVideoRef,
-    remoteVideoRef,
     hasRemoteParticipant,
     isMuted,
     isVideoOff,
@@ -602,53 +683,13 @@ function ConnectedVideoCall({
           )}
         </div>
 
-        {/* Remote video */}
-        <div style={styles.videoCard}>
-          <div style={styles.videoContainer}>
-            <video
-              ref={remoteVideoRef}
-              autoPlay
-              playsInline
-              style={styles.video}
-            />
-            <div style={styles.videoLabel}>
-              {hasRemoteParticipant ? 'Remote Participant' : 'Waiting for others...'}
-            </div>
-            {!hasRemoteParticipant && (
-              <div style={styles.waitingOverlay}>
-                <div style={styles.waitingText}>
-                  <div style={styles.spinner}></div>
-                  <p>Waiting for someone to join...</p>
-                  <button
-                    onClick={copyLinkToClipboard}
-                    style={styles.shareButton}
-                  >
-                    {linkCopied ? '✅ Copied!' : '🔗 Share Link'}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Remote captions display */}
-          {latestRemoteCaption && (
-            <div style={styles.captionOverlay}>
-              <div style={{ ...styles.captionBubble, ...styles.remoteCaptionBubble }}>
-                💬 {latestRemoteCaption.text}
-              </div>
-            </div>
-          )}
-
-          {/* Sign animator for remote */}
-          {currentSignWord && latestRemoteCaption?.sender === 'remote' && (
-            <div style={styles.signDisplay}>
-              <SignAnimator caption={currentSignWord} isActive={true} />
-              <div style={styles.signLabel}>
-                {getSignAnimation(currentSignWord).description}
-              </div>
-            </div>
-          )}
-        </div>
+        {/* Remote participants */}
+        <RemoteParticipants
+          latestRemoteCaption={latestRemoteCaption}
+          currentSignWord={currentSignWord}
+          linkCopied={linkCopied}
+          copyLinkToClipboard={copyLinkToClipboard}
+        />
       </div>
 
       {/* Caption history sidebar */}
@@ -923,11 +964,12 @@ const styles = {
   } as const,
   videoGrid: {
     display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
     gap: '24px',
     padding: '24px',
     flex: 1,
-    overflow: 'hidden',
+    overflow: 'auto',
+    alignContent: 'start',
   } as const,
   videoCard: {
     position: 'relative' as const,
