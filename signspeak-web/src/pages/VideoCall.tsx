@@ -239,6 +239,7 @@ export function VideoCall() {
       <ConnectedVideoCall
         speech={speech}
         captions={captions}
+        setCaptions={setCaptions}
         sendCaptionRef={sendCaptionRef}
         onLeave={handleLeaveCall}
         onRemoteCaptionReceived={handleRemoteCaption}
@@ -334,6 +335,7 @@ function RemoteParticipants({ latestRemoteCaption, linkCopied, copyLinkToClipboa
 interface ConnectedVideoCallProps {
   speech: ReturnType<typeof useSpeechToText>;
   captions: Caption[];
+  setCaptions: React.Dispatch<React.SetStateAction<Caption[]>>;
   sendCaptionRef: MutableRefObject<(text: string) => void>;
   onLeave: () => void;
   onRemoteCaptionReceived: (caption: CaptionMessage) => void;
@@ -346,6 +348,7 @@ interface ConnectedVideoCallProps {
 function ConnectedVideoCall({
   speech,
   captions,
+  setCaptions,
   sendCaptionRef,
   onLeave,
   onRemoteCaptionReceived,
@@ -396,6 +399,15 @@ function ConnectedVideoCall({
       if (!aslGesturesSent.has(label)) {
         console.log('[VideoCall] 📤 Sending ASL translation to remote participants:', text);
         sendCaption(text);
+
+        // Add to local captions state so it shows in the caption box
+        setCaptions(prev => [...prev, {
+          id: `local-asl-${Date.now()}`,
+          text,
+          timestamp: Date.now(),
+          sender: 'local' as const
+        }].slice(-20));
+
         setAslGesturesSent(prev => {
           const newSet = new Set(prev);
           newSet.add(label);
@@ -407,8 +419,6 @@ function ConnectedVideoCall({
           return newSet;
         });
 
-        // Add to local captions
-        sendCaptionRef.current(text);
         console.log('[VideoCall] ✅ ASL translation sent successfully');
       } else {
         console.log('[VideoCall] ⏭️ Skipping duplicate gesture:', label);
