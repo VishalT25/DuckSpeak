@@ -577,10 +577,7 @@ function ConnectedVideoCall({
       {signRecognitionMode && (
         <div style={asl.isModelLoaded ? styles.successBanner : (asl.error ? styles.errorBanner : styles.infoBanner)}>
           {asl.isModelLoaded ? (
-            <>
-              ✅ <strong>ASL Translation Active</strong> - {asl.handsDetected ? '✋ Hands detected!' : 'Show your hands to sign'}
-              {asl.currentLabel && ` - Translating: "${toNaturalText(asl.currentLabel)}" (${Math.round(asl.confidence * 100)}% confidence)`}
-            </>
+            <>✅ <strong>ASL Translation Active</strong> - Gestures will appear in captions</>
           ) : asl.error ? (
             <>
               ⚠️ <strong>{asl.error}</strong>
@@ -622,7 +619,7 @@ function ConnectedVideoCall({
             )}
             {signRecognitionMode && (
               <div style={styles.signModeIndicator}>
-                🤟 Sign Mode {asl.handsDetected && '✋'}
+                🤟 Sign Mode
               </div>
             )}
           </div>
