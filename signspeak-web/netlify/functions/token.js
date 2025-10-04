@@ -1,11 +1,11 @@
 /**
  * Netlify Serverless Function - LiveKit Token Generation
- * Generates secure access tokens for LiveKit rooms
+ * Generates secure access tokens for LiveKit rooms using jsonwebtoken
  */
 
-import { AccessToken } from 'livekit-server-sdk';
+const jwt = require('jsonwebtoken');
 
-export async function handler(event) {
+exports.handler = async function(event) {
   // Only allow POST requests
   if (event.httpMethod !== 'POST') {
     return {
@@ -36,33 +36,42 @@ export async function handler(event) {
     // Get LiveKit credentials from environment
     const apiKey = process.env.LIVEKIT_API_KEY;
     const apiSecret = process.env.LIVEKIT_API_SECRET;
-    const livekitUrl = process.env.LIVEKIT_URL || process.env.VITE_LIVEKIT_URL;
+    const livekitUrl = process.env.VITE_LIVEKIT_URL || process.env.LIVEKIT_URL;
 
     if (!apiKey || !apiSecret) {
       console.error('LiveKit credentials not configured');
       return {
         statusCode: 500,
-        body: JSON.stringify({ error: 'Server configuration error' })
+        body: JSON.stringify({ error: 'Server configuration error: API keys missing' })
       };
     }
 
-    // Create access token
-    const at = new AccessToken(apiKey, apiSecret, {
-      identity: participantName,
+    // Create JWT payload for LiveKit
+    const now = Math.floor(Date.now() / 1000);
+    const payload = {
+      sub: participantName,
+      iss: apiKey,
+      exp: now + 86400, // 24 hours
+      nbf: now - 60, // Valid from 1 minute ago
+      video: {
+        room: roomName,
+        roomJoin: true,
+        canPublish: true,
+        canSubscribe: true,
+        canPublishData: true,
+      },
       metadata: metadata || '',
-    });
+      name: participantName,
+    };
 
-    // Grant permissions
-    at.addGrant({
-      room: roomName,
-      roomJoin: true,
-      canPublish: true,
-      canSubscribe: true,
-      canPublishData: true,
+    // Generate JWT token
+    const token = jwt.sign(payload, apiSecret, {
+      algorithm: 'HS256',
+      header: {
+        typ: 'JWT',
+        alg: 'HS256',
+      },
     });
-
-    // Generate JWT
-    const token = await at.toJwt();
 
     // Return token
     return {
@@ -80,6 +89,12 @@ export async function handler(event) {
     };
   } catch (error) {
     console.error('Token generation error:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Environment check:', {
+      hasApiKey: !!process.env.LIVEKIT_API_KEY,
+      hasApiSecret: !!process.env.LIVEKIT_API_SECRET,
+      hasUrl: !!(process.env.VITE_LIVEKIT_URL || process.env.LIVEKIT_URL)
+    });
     return {
       statusCode: 500,
       body: JSON.stringify({
@@ -88,4 +103,4 @@ export async function handler(event) {
       })
     };
   }
-}
+};
