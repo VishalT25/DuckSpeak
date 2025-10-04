@@ -58,6 +58,8 @@ export function useASLRecognition(options: UseASLRecognitionOptions = {}): UseAS
   const landmarksRef = useRef<any[]>([]);
   const onGestureDetectedRef = useRef(onGestureDetected);
   const onErrorRef = useRef(onError);
+  const lastProcessTimeRef = useRef<number>(0);
+  const PROCESS_INTERVAL_MS = 200; // Process every 200ms (5fps) instead of every frame
 
   // Keep callback refs up to date
   useEffect(() => {
@@ -139,12 +141,21 @@ export function useASLRecognition(options: UseASLRecognitionOptions = {}): UseAS
     };
   }, [minConfidence, windowSize, minHoldFrames]);
 
-  // Processing loop
+  // Processing loop - throttled to reduce flickering
   const processFrame = useCallback(() => {
     if (!enabled || !videoElement || !detectorRef.current || !classifierRef.current) {
       animationFrameRef.current = requestAnimationFrame(processFrame);
       return;
     }
+
+    // Throttle processing to reduce video flickering
+    const now = performance.now();
+    if (now - lastProcessTimeRef.current < PROCESS_INTERVAL_MS) {
+      // Skip this frame, check again next frame
+      animationFrameRef.current = requestAnimationFrame(processFrame);
+      return;
+    }
+    lastProcessTimeRef.current = now;
 
     // Check if video is ready (has valid dimensions and is playing)
     if (!videoElement.videoWidth || !videoElement.videoHeight || videoElement.readyState < 2) {
@@ -158,7 +169,7 @@ export function useASLRecognition(options: UseASLRecognitionOptions = {}): UseAS
 
     try {
       // Detect landmarks
-      const timestamp = performance.now();
+      const timestamp = now;
       const landmarks = detector.detectLandmarks(videoElement, timestamp);
       landmarksRef.current = landmarks;
 
