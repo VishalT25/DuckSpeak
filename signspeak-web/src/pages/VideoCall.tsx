@@ -645,18 +645,6 @@ function ConnectedVideoCall({
               </div>
             </div>
           )}
-
-          {/* ASL Recognition Display - Current gesture being recognized */}
-          {signRecognitionMode && asl.currentLabel && (
-            <div style={styles.aslRecognitionDisplay}>
-              <div style={styles.aslGestureLabel}>
-                {toNaturalText(asl.currentLabel)}
-              </div>
-              <div style={styles.aslConfidence}>
-                {Math.round(asl.confidence * 100)}% confident
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Remote participants */}
