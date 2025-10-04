@@ -39,9 +39,9 @@ export function useASLRecognition(options: UseASLRecognitionOptions = {}): UseAS
     enabled = false,
     onGestureDetected,
     onError,
-    minConfidence = 0.7,
-    windowSize = 15,
-    minHoldFrames = 10,
+    minConfidence = 0.65,
+    windowSize = 10,
+    minHoldFrames = 3,
   } = options;
 
   const [isInitialized, setIsInitialized] = useState(false);
@@ -59,7 +59,7 @@ export function useASLRecognition(options: UseASLRecognitionOptions = {}): UseAS
   const onGestureDetectedRef = useRef(onGestureDetected);
   const onErrorRef = useRef(onError);
   const lastProcessTimeRef = useRef<number>(0);
-  const PROCESS_INTERVAL_MS = 200; // Process every 200ms (5fps) instead of every frame
+  const PROCESS_INTERVAL_MS = 100; // Process every 100ms (10fps) for faster response
 
   // Keep callback refs up to date
   useEffect(() => {
