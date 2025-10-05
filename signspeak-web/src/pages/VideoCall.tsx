@@ -9,6 +9,7 @@ import { useLiveKit, CaptionMessage } from '../hooks/useLiveKit';
 import { useSpeechToText } from '../hooks/useSpeechToText';
 import { useASLRecognition } from '../hooks/useASLRecognition';
 import { toNaturalText } from '../lib/labels';
+import { speak } from '../lib/tts';
 import { Track } from 'livekit-client';
 import { animate, createScope, spring, stagger } from 'animejs';
 import styles from '../styles/videoCall.styles';
@@ -863,6 +864,10 @@ function ConnectedVideoCall({
       // Convert to natural text
       const text = toNaturalText(label);
       console.log('[VideoCall] 📝 Translated to:', text);
+
+      // Speak the detected sign
+      speak(text);
+      console.log('[VideoCall] 🔊 Speaking:', text);
 
       // Send as caption to remote participant (avoid duplicates)
       if (!aslGesturesSent.has(label)) {
