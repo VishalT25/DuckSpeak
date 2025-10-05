@@ -6,6 +6,7 @@ import {
   LocalParticipant,
   LocalTrackPublication,
   LocalVideoTrack,
+  Participant,
   RemoteParticipant,
   RemoteTrack,
   RemoteTrackPublication,
@@ -14,6 +15,7 @@ import {
   Room,
   RoomEvent,
   Track,
+  TrackPublication,
 } from 'livekit-client';
 
 type Nullable<T> = T | null;
@@ -179,19 +181,24 @@ export function useLiveKit(options: UseLiveKitOptions = {}): UseLiveKitReturn {
 
   const toggleMute = useCallback(async () => {
     if (!room) {
+      console.log('[LiveKit] toggleMute: No room available');
       return;
     }
 
-    const nextMuted = !isMuted;
-
     try {
-      const enabled = await room.localParticipant.setMicrophoneEnabled(!nextMuted);
+      // Get current state directly from room, not from React state
+      const currentlyEnabled = room.localParticipant.isMicrophoneEnabled;
+      console.log('[LiveKit] toggleMute: Current room.isMicrophoneEnabled:', currentlyEnabled);
+
+      const enabled = await room.localParticipant.setMicrophoneEnabled(!currentlyEnabled);
+      console.log('[LiveKit] toggleMute: setMicrophoneEnabled result:', enabled);
       setIsMuted(!enabled);
+      console.log('[LiveKit] toggleMute: Setting isMuted to:', !enabled);
     } catch (err) {
       console.error('[LiveKit] Failed to toggle microphone', err);
       setError((err as Error).message);
     }
-  }, [isMuted, room]);
+  }, [room]);
 
   const toggleVideo = useCallback(async () => {
     if (!room) {
@@ -356,6 +363,24 @@ export function useLiveKit(options: UseLiveKitOptions = {}): UseLiveKitReturn {
         attachTrackToElement(publication.videoTrack, localVideoElementRef.current);
       } else if (publication.kind === Track.Kind.Audio) {
         console.log('[LiveKit] Local audio track published successfully');
+        // Update muted state when audio track is published
+        setIsMuted(!room.localParticipant.isMicrophoneEnabled);
+      }
+    };
+
+    const handleLocalTrackMuted = (publication: TrackPublication, participant: Participant) => {
+      console.log('[LiveKit] Track muted:', publication.kind, 'participant:', participant.identity);
+      // Only update if it's the local participant's audio track
+      if (participant === room.localParticipant && publication.kind === Track.Kind.Audio) {
+        setIsMuted(true);
+      }
+    };
+
+    const handleLocalTrackUnmuted = (publication: TrackPublication, participant: Participant) => {
+      console.log('[LiveKit] Track unmuted:', publication.kind, 'participant:', participant.identity);
+      // Only update if it's the local participant's audio track
+      if (participant === room.localParticipant && publication.kind === Track.Kind.Audio) {
+        setIsMuted(false);
       }
     };
 
@@ -373,6 +398,8 @@ export function useLiveKit(options: UseLiveKitOptions = {}): UseLiveKitReturn {
       .on(RoomEvent.TrackSubscribed, handleTrackSubscribed)
       .on(RoomEvent.TrackUnsubscribed, handleTrackUnsubscribed)
       .on(RoomEvent.LocalTrackPublished, handleLocalTrackPublished)
+      .on(RoomEvent.TrackMuted, handleLocalTrackMuted)
+      .on(RoomEvent.TrackUnmuted, handleLocalTrackUnmuted)
       .on(RoomEvent.DataReceived, handleDataMessage)
       .on(RoomEvent.Disconnected, handleDisconnected);
 
@@ -421,6 +448,8 @@ export function useLiveKit(options: UseLiveKitOptions = {}): UseLiveKitReturn {
         .off(RoomEvent.TrackSubscribed, handleTrackSubscribed)
         .off(RoomEvent.TrackUnsubscribed, handleTrackUnsubscribed)
         .off(RoomEvent.LocalTrackPublished, handleLocalTrackPublished)
+        .off(RoomEvent.TrackMuted, handleLocalTrackMuted)
+        .off(RoomEvent.TrackUnmuted, handleLocalTrackUnmuted)
         .off(RoomEvent.DataReceived, handleDataMessage)
         .off(RoomEvent.Disconnected, handleDisconnected);
 

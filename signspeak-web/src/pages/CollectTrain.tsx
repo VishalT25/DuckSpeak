@@ -476,51 +476,238 @@ export function CollectTrain() {
   // Calculate progress for visual feedback
   const captureProgress = Math.min((capturedCount / targetCount) * 100, 100);
   return (
-    <div style={{ padding: '20px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h1 style={{ margin: 0, color: '#fff' }}>Collect & Train</h1>
-        <button
-          onClick={() => setShowTutorial(true)}
-          style={{
-            padding: '10px 20px',
-            backgroundColor: '#0066ff',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-          }}
-        >
-          📖 Show Tutorial
-        </button>
-      </div>
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #0a0e1a 0%, #0f172a 100%)',
+    }}>
+      {/* Global Navigation Header */}
+      <header style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 1000,
+        background: 'rgba(10, 14, 26, 0.8)',
+        backdropFilter: 'blur(12px)',
+        borderBottom: '1px solid rgba(59, 130, 246, 0.2)',
+      }}>
+        <div style={{
+          maxWidth: '1400px',
+          margin: '0 auto',
+          padding: '1rem 1.5rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}>
+          {/* Logo */}
+          <a
+            href="/"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              textDecoration: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            <img src="/logo.svg" alt="DuckSpeak Logo" style={{ width: '2.5rem', height: '2.5rem' }} />
+            <span style={{
+              fontSize: '1.5rem',
+              fontWeight: 800,
+              background: 'linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              fontFamily: "'Space Grotesk', 'Inter', sans-serif",
+            }}>
+              DuckSpeak
+            </span>
+          </a>
+
+          {/* Navigation */}
+          <nav style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '2rem',
+          }}>
+            <a
+              href="/#features"
+              style={{
+                color: '#94a3b8',
+                textDecoration: 'none',
+                fontSize: '1rem',
+                fontWeight: 500,
+                transition: 'color 0.2s ease',
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.color = '#fff'}
+              onMouseLeave={(e) => e.currentTarget.style.color = '#94a3b8'}
+            >
+              Features
+            </a>
+            <a
+              href="/#training"
+              style={{
+                color: '#94a3b8',
+                textDecoration: 'none',
+                fontSize: '1rem',
+                fontWeight: 500,
+                transition: 'color 0.2s ease',
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.color = '#fff'}
+              onMouseLeave={(e) => e.currentTarget.style.color = '#94a3b8'}
+            >
+              Training
+            </a>
+            <a
+              href="/#how-it-works"
+              style={{
+                color: '#94a3b8',
+                textDecoration: 'none',
+                fontSize: '1rem',
+                fontWeight: 500,
+                transition: 'color 0.2s ease',
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.color = '#fff'}
+              onMouseLeave={(e) => e.currentTarget.style.color = '#94a3b8'}
+            >
+              How It Works
+            </a>
+            <a
+              href="/video-call"
+              style={{
+                padding: '0.625rem 1.5rem',
+                background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                color: '#fff',
+                textDecoration: 'none',
+                borderRadius: '0.5rem',
+                fontSize: '1rem',
+                fontWeight: 600,
+                border: '1px solid rgba(59, 130, 246, 0.3)',
+                boxShadow: '0 2px 8px rgba(59, 130, 246, 0.3)',
+                transition: 'all 0.2s ease',
+                display: 'inline-block',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(59, 130, 246, 0.3)';
+              }}
+            >
+              Start Call
+            </a>
+          </nav>
+        </div>
+      </header>
+
+      {/* Content with padding for fixed header */}
+      <div style={{ paddingTop: '7rem' }}>
+        <div style={{ padding: '2rem' }}>
+        {/* Page Header */}
+        <div style={{
+          maxWidth: '1400px',
+          margin: '0 auto 3rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}>
+          <div>
+            <h1 style={{
+              margin: 0,
+              fontSize: '3.5rem',
+              fontWeight: 800,
+              background: 'linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              fontFamily: "'Space Grotesk', 'Inter', sans-serif",
+            }}>
+              Training Studio
+            </h1>
+            <p style={{
+              margin: '0.5rem 0 0 0',
+              color: '#94a3b8',
+              fontSize: '1.125rem',
+            }}>
+              Collect data and train custom ASL models
+            </p>
+          </div>
+          <button
+            onClick={() => setShowTutorial(true)}
+            style={{
+              padding: '0.875rem 1.75rem',
+              background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+              color: '#fff',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+              borderRadius: '0.75rem',
+              cursor: 'pointer',
+              fontWeight: 600,
+              fontSize: '1rem',
+              boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 6px 20px rgba(59, 130, 246, 0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
+            }}
+          >
+            📖 Show Tutorial
+          </button>
+        </div>
 
       {/* Quick Start Banner */}
       {stats.sampleCount === 0 && !quickStartMode && (
-        <div
-          style={{
-            padding: '20px',
-            backgroundColor: 'rgba(0, 102, 255, 0.2)',
-            borderRadius: '8px',
-            marginBottom: '20px',
-            border: '2px solid #0066ff',
-          }}
-        >
-          <h3 style={{ margin: '0 0 10px 0', color: '#00ff00' }}>🚀 First time? Try Quick Start!</h3>
-          <p style={{ margin: '0 0 15px 0', color: '#aaa' }}>
+        <div style={{
+          maxWidth: '1400px',
+          margin: '0 auto 2rem',
+          padding: '2rem',
+          background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+          border: '1px solid rgba(59, 130, 246, 0.3)',
+          borderRadius: '1.5rem',
+          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
+        }}>
+          <h3 style={{
+            margin: '0 0 1rem 0',
+            fontSize: '1.75rem',
+            fontWeight: 700,
+            color: '#60a5fa',
+            fontFamily: "'Space Grotesk', 'Inter', sans-serif",
+          }}>
+            🚀 First time? Try Quick Start!
+          </h3>
+          <p style={{
+            margin: '0 0 1.5rem 0',
+            color: '#94a3b8',
+            fontSize: '1.125rem',
+            lineHeight: 1.6,
+          }}>
             Automatically collect 10 common ASL signs with guided steps. Takes ~15-20 minutes.
           </p>
           <button
             onClick={handleQuickStart}
             style={{
-              padding: '12px 24px',
-              backgroundColor: '#00ff00',
-              color: '#000',
-              border: 'none',
-              borderRadius: '4px',
+              padding: '0.875rem 1.75rem',
+              background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+              color: '#fff',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+              borderRadius: '0.75rem',
               cursor: 'pointer',
-              fontWeight: 'bold',
-              fontSize: '16px',
+              fontWeight: 600,
+              fontSize: '1rem',
+              boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 6px 20px rgba(59, 130, 246, 0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
             }}
           >
             Start Quick Collection →
@@ -530,31 +717,45 @@ export function CollectTrain() {
 
       {/* Quick Start Progress */}
       {quickStartMode && (
-        <div
-          style={{
-            padding: '15px',
-            backgroundColor: 'rgba(0, 255, 0, 0.1)',
-            borderRadius: '8px',
-            marginBottom: '20px',
-            border: '2px solid #00ff00',
-          }}
-        >
+        <div style={{
+          maxWidth: '1400px',
+          margin: '0 auto 2rem',
+          padding: '1.5rem',
+          background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+          border: '1px solid rgba(59, 130, 246, 0.4)',
+          borderRadius: '1.5rem',
+          boxShadow: '0 4px 16px rgba(59, 130, 246, 0.2)',
+        }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <strong style={{ color: '#00ff00' }}>Quick Start Mode</strong>
-              <div style={{ color: '#aaa', fontSize: '14px', marginTop: '5px' }}>
+              <strong style={{
+                color: '#60a5fa',
+                fontSize: '1.25rem',
+                fontFamily: "'Space Grotesk', 'Inter', sans-serif",
+              }}>
+                Quick Start Mode
+              </strong>
+              <div style={{
+                color: '#94a3b8',
+                fontSize: '1rem',
+                marginTop: '0.5rem',
+              }}>
                 Sign {quickStartIndex + 1} of {QUICK_START_SIGNS.length}: <strong style={{ color: '#fff' }}>{currentLabel}</strong>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '5px' }}>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
               {QUICK_START_SIGNS.map((sign, idx) => (
                 <div
                   key={sign}
                   style={{
-                    width: '30px',
-                    height: '8px',
-                    backgroundColor: idx < quickStartIndex ? '#00ff00' : idx === quickStartIndex ? '#ffff00' : '#333',
-                    borderRadius: '4px',
+                    width: '2rem',
+                    height: '0.5rem',
+                    background: idx < quickStartIndex
+                      ? 'linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%)'
+                      : idx === quickStartIndex
+                      ? 'linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%)'
+                      : '#334155',
+                    borderRadius: '0.25rem',
                   }}
                   title={sign}
                 />
@@ -564,9 +765,21 @@ export function CollectTrain() {
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+      <div style={{
+        maxWidth: '1400px',
+        margin: '0 auto',
+        display: 'flex',
+        gap: '2rem',
+        flexWrap: 'wrap',
+      }}>
         {/* Video + Canvas */}
-        <div style={{ position: 'relative' }}>
+        <div style={{
+          position: 'relative',
+          borderRadius: '1.5rem',
+          overflow: 'hidden',
+          border: '1px solid rgba(59, 130, 246, 0.3)',
+          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)',
+        }}>
           <CameraView
             onVideoReady={handleVideoReady}
             onStreamReady={handleStreamReady}
@@ -581,13 +794,16 @@ export function CollectTrain() {
               <div
                 style={{
                   position: 'absolute',
-                  top: '10px',
-                  left: '10px',
-                  backgroundColor: 'rgba(255, 0, 0, 0.8)',
+                  top: '1rem',
+                  left: '1rem',
+                  background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
                   color: '#fff',
-                  padding: '5px 10px',
-                  borderRadius: '4px',
-                  fontWeight: 'bold',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '0.5rem',
+                  fontWeight: 600,
+                  fontSize: '0.875rem',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)',
                 }}
               >
                 ⏺ CAPTURING
@@ -600,31 +816,42 @@ export function CollectTrain() {
                   top: '50%',
                   left: '50%',
                   transform: 'translate(-50%, -50%)',
-                  width: '120px',
-                  height: '120px',
+                  width: '140px',
+                  height: '140px',
                   borderRadius: '50%',
-                  background: `conic-gradient(#00ff00 ${captureProgress}%, transparent ${captureProgress}%)`,
+                  background: `conic-gradient(#3b82f6 ${captureProgress}%, rgba(51, 65, 85, 0.5) ${captureProgress}%)`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  padding: '6px',
                 }}
               >
                 <div
                   style={{
-                    width: '100px',
-                    height: '100px',
+                    width: '128px',
+                    height: '128px',
                     borderRadius: '50%',
-                    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                    background: 'rgba(15, 23, 42, 0.95)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     flexDirection: 'column',
+                    border: '2px solid rgba(59, 130, 246, 0.2)',
                   }}
                 >
-                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#00ff00' }}>
+                  <div style={{
+                    fontSize: '2rem',
+                    fontWeight: 700,
+                    color: '#60a5fa',
+                    fontFamily: "'Space Grotesk', 'Inter', sans-serif",
+                  }}>
                     {Math.round(captureProgress)}%
                   </div>
-                  <div style={{ fontSize: '12px', color: '#aaa' }}>
+                  <div style={{
+                    fontSize: '0.875rem',
+                    color: '#94a3b8',
+                    marginTop: '0.25rem',
+                  }}>
                     {capturedCount}/{targetCount}
                   </div>
                 </div>
@@ -823,7 +1050,7 @@ export function CollectTrain() {
         </div>
 
         {/* Control panel */}
-        <div style={{ flex: 1, minWidth: '300px' }}>
+        <div style={{ flex: 1, minWidth: '350px' }}>
           {/* Capture controls */}
           <CapturePanel
             isCapturing={isCapturing}
@@ -838,19 +1065,35 @@ export function CollectTrain() {
           {/* Dataset stats */}
           <div
             style={{
-              padding: '20px',
-              backgroundColor: '#1a1a1a',
-              borderRadius: '8px',
-              marginBottom: '20px',
+              padding: '2rem',
+              background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+              border: '1px solid rgba(59, 130, 246, 0.2)',
+              borderRadius: '1.5rem',
+              marginBottom: '1.5rem',
+              boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
             }}
           >
-            <h3 style={{ marginTop: 0, color: '#fff' }}>Dataset</h3>
-            <div style={{ fontSize: '14px', color: '#aaa', marginBottom: '10px' }}>
-              Total samples: <strong style={{ color: '#00ff00' }}>{stats.sampleCount}</strong>
+            <h3 style={{
+              marginTop: 0,
+              marginBottom: '1.5rem',
+              color: '#fff',
+              fontSize: '1.5rem',
+              fontWeight: 700,
+              fontFamily: "'Space Grotesk', 'Inter', sans-serif",
+            }}>
+              Dataset
+            </h3>
+            <div style={{
+              fontSize: '1rem',
+              color: '#94a3b8',
+              marginBottom: '1rem',
+              lineHeight: 1.8,
+            }}>
+              Total samples: <strong style={{ color: '#60a5fa' }}>{stats.sampleCount}</strong>
               <br />
-              Labels: <strong style={{ color: '#00ff00' }}>{stats.labelCount}</strong>
+              Labels: <strong style={{ color: '#60a5fa' }}>{stats.labelCount}</strong>
               <br />
-              Model: <strong style={{ color: stats.hasModel ? '#00ff00' : '#ff3333' }}>
+              Model: <strong style={{ color: stats.hasModel ? '#60a5fa' : '#ef4444' }}>
                 {stats.hasModel ? 'Trained' : 'Not trained'}
               </strong>
             </div>
@@ -924,35 +1167,78 @@ export function CollectTrain() {
             disabled={isTraining || stats.sampleCount === 0}
             style={{
               width: '100%',
-              padding: '15px',
-              backgroundColor: isTraining ? '#666' : '#00ff00',
-              color: '#000',
-              border: 'none',
-              borderRadius: '4px',
+              padding: '1.25rem',
+              background: isTraining || stats.sampleCount === 0
+                ? 'linear-gradient(135deg, #334155 0%, #1e293b 100%)'
+                : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+              color: '#fff',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+              borderRadius: '0.75rem',
               cursor: stats.sampleCount > 0 && !isTraining ? 'pointer' : 'not-allowed',
-              fontWeight: 'bold',
-              fontSize: '18px',
-              marginBottom: '20px',
+              fontWeight: 700,
+              fontSize: '1.125rem',
+              marginBottom: '1.5rem',
+              boxShadow: stats.sampleCount > 0 && !isTraining ? '0 4px 12px rgba(59, 130, 246, 0.3)' : 'none',
+              transition: 'all 0.2s ease',
+              opacity: isTraining || stats.sampleCount === 0 ? 0.5 : 1,
+              fontFamily: "'Space Grotesk', 'Inter', sans-serif",
+            }}
+            onMouseEnter={(e) => {
+              if (stats.sampleCount > 0 && !isTraining) {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(59, 130, 246, 0.4)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (stats.sampleCount > 0 && !isTraining) {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
+              }
             }}
           >
             {isTraining ? trainingStatus : 'Train Model'}
           </button>
 
           {/* Data management */}
-          <div style={{ marginBottom: '20px' }}>
-            <h4 style={{ color: '#fff', marginBottom: '10px', fontSize: '14px' }}>Data Management</h4>
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+          <div style={{
+            padding: '2rem',
+            background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+            border: '1px solid rgba(59, 130, 246, 0.2)',
+            borderRadius: '1.5rem',
+            marginBottom: '1.5rem',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
+          }}>
+            <h4 style={{
+              color: '#fff',
+              marginBottom: '1rem',
+              fontSize: '1.25rem',
+              fontWeight: 700,
+              fontFamily: "'Space Grotesk', 'Inter', sans-serif",
+            }}>
+              Data Management
+            </h4>
+            <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem' }}>
               <button
                 onClick={handleExport}
                 style={{
                   flex: 1,
-                  padding: '10px',
-                  backgroundColor: '#555',
+                  padding: '0.75rem',
+                  background: 'linear-gradient(135deg, #475569 0%, #334155 100%)',
                   color: '#fff',
-                  border: 'none',
-                  borderRadius: '4px',
+                  border: '1px solid rgba(71, 85, 105, 0.3)',
+                  borderRadius: '0.5rem',
                   cursor: 'pointer',
-                  fontSize: '12px',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(71, 85, 105, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
                 }}
               >
                 Export
@@ -961,13 +1247,23 @@ export function CollectTrain() {
                 onClick={handleImport}
                 style={{
                   flex: 1,
-                  padding: '10px',
-                  backgroundColor: '#555',
+                  padding: '0.75rem',
+                  background: 'linear-gradient(135deg, #475569 0%, #334155 100%)',
                   color: '#fff',
-                  border: 'none',
-                  borderRadius: '4px',
+                  border: '1px solid rgba(71, 85, 105, 0.3)',
+                  borderRadius: '0.5rem',
                   cursor: 'pointer',
-                  fontSize: '12px',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(71, 85, 105, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
                 }}
               >
                 Import
@@ -976,69 +1272,114 @@ export function CollectTrain() {
                 onClick={handleClearAll}
                 style={{
                   flex: 1,
-                  padding: '10px',
-                  backgroundColor: '#ff3333',
+                  padding: '0.75rem',
+                  background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
                   color: '#fff',
-                  border: 'none',
-                  borderRadius: '4px',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  borderRadius: '0.5rem',
                   cursor: 'pointer',
-                  fontSize: '12px',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
                 }}
               >
                 Clear All
               </button>
             </div>
 
-            <h4 style={{ color: '#00ff00', marginTop: '15px', marginBottom: '10px', fontSize: '14px' }}>
+            <h4 style={{
+              color: '#60a5fa',
+              marginTop: '1rem',
+              marginBottom: '1rem',
+              fontSize: '1.125rem',
+              fontWeight: 700,
+              fontFamily: "'Space Grotesk', 'Inter', sans-serif",
+            }}>
               🚀 Auto-Load Dataset
             </h4>
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+            <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem' }}>
               <button
                 onClick={handleImportDataset}
                 style={{
                   flex: 1,
-                  padding: '12px',
-                  backgroundColor: '#0066ff',
+                  padding: '1rem 0.75rem',
+                  background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
                   color: '#fff',
-                  border: 'none',
-                  borderRadius: '4px',
+                  border: '1px solid rgba(59, 130, 246, 0.3)',
+                  borderRadius: '0.5rem',
                   cursor: 'pointer',
-                  fontWeight: 'bold',
-                  fontSize: '13px',
+                  fontWeight: 600,
+                  fontSize: '0.875rem',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
                 }}
               >
                 📁 Import Dataset<br/>
-                <span style={{ fontSize: '10px', fontWeight: 'normal' }}>(CSV/JSON)</span>
+                <span style={{ fontSize: '0.75rem', fontWeight: 'normal', opacity: 0.8 }}>(CSV/JSON)</span>
               </button>
               <button
                 onClick={handleGenerateSample}
                 style={{
                   flex: 1,
-                  padding: '12px',
-                  backgroundColor: '#9900ff',
+                  padding: '1rem 0.75rem',
+                  background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
                   color: '#fff',
-                  border: 'none',
-                  borderRadius: '4px',
+                  border: '1px solid rgba(139, 92, 246, 0.3)',
+                  borderRadius: '0.5rem',
                   cursor: 'pointer',
-                  fontWeight: 'bold',
-                  fontSize: '13px',
+                  fontWeight: 600,
+                  fontSize: '0.875rem',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
                 }}
               >
                 ✨ Generate Sample<br/>
-                <span style={{ fontSize: '10px', fontWeight: 'normal' }}>(Synthetic)</span>
+                <span style={{ fontSize: '0.75rem', fontWeight: 'normal', opacity: 0.8 }}>(Synthetic)</span>
               </button>
             </div>
             <button
               onClick={handleShowKaggleInstructions}
               style={{
                 width: '100%',
-                padding: '8px',
-                backgroundColor: '#333',
-                color: '#aaa',
-                border: '1px solid #555',
-                borderRadius: '4px',
+                padding: '0.75rem',
+                background: 'rgba(51, 65, 85, 0.5)',
+                color: '#94a3b8',
+                border: '1px solid rgba(71, 85, 105, 0.3)',
+                borderRadius: '0.5rem',
                 cursor: 'pointer',
-                fontSize: '11px',
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(71, 85, 105, 0.5)';
+                e.currentTarget.style.color = '#e2e8f0';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(51, 65, 85, 0.5)';
+                e.currentTarget.style.color = '#94a3b8';
               }}
             >
               ℹ️ How to use Kaggle ASL datasets
@@ -1048,30 +1389,56 @@ export function CollectTrain() {
           {/* Tips */}
           <div
             style={{
-              padding: '15px',
-              backgroundColor: '#222',
-              borderRadius: '4px',
-              fontSize: '13px',
-              color: '#888',
+              padding: '2rem',
+              background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+              border: '1px solid rgba(59, 130, 246, 0.2)',
+              borderRadius: '1.5rem',
+              boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
             }}
           >
-            <strong style={{ color: '#fff' }}>Recommended Dataset:</strong>
-            <ul style={{ margin: '5px 0', paddingLeft: '20px' }}>
+            <strong style={{
+              color: '#fff',
+              fontSize: '1.125rem',
+              fontWeight: 700,
+              fontFamily: "'Space Grotesk', 'Inter', sans-serif",
+            }}>
+              Recommended Dataset
+            </strong>
+            <ul style={{
+              margin: '0.75rem 0',
+              paddingLeft: '1.5rem',
+              color: '#94a3b8',
+              lineHeight: 1.8,
+            }}>
               <li>60-100 samples per sign</li>
               <li>10-20 different signs</li>
               <li>Total: 600-2000 samples</li>
               <li>Training takes &lt;1 second</li>
             </ul>
-            <strong style={{ color: '#00ffff', marginTop: '10px', display: 'block' }}>
-              2-Hand Mode Active:
+            <strong style={{
+              color: '#60a5fa',
+              marginTop: '1.25rem',
+              display: 'block',
+              fontSize: '1.125rem',
+              fontWeight: 700,
+              fontFamily: "'Space Grotesk', 'Inter', sans-serif",
+            }}>
+              2-Hand Mode Active
             </strong>
-            <ul style={{ margin: '5px 0', paddingLeft: '20px', color: '#aaa' }}>
+            <ul style={{
+              margin: '0.75rem 0 0',
+              paddingLeft: '1.5rem',
+              color: '#94a3b8',
+              lineHeight: 1.8,
+            }}>
               <li>1-hand signs: Show one hand only</li>
               <li>2-hand signs: Show both hands</li>
               <li>System handles 1 or 2 hands automatically</li>
             </ul>
           </div>
         </div>
+        </div>
+      </div>
       </div>
     </div>
   );

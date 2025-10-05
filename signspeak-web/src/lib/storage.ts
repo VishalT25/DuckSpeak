@@ -124,7 +124,52 @@ export async function saveModel(model: ClassifierData): Promise<void> {
  * Load trained model
  */
 export async function loadModel(): Promise<ClassifierData | null> {
-  return (await get<ClassifierData>(MODEL_KEY)) || null;
+  const existingModel = await get<ClassifierData>(MODEL_KEY);
+
+  if (existingModel) {
+    return existingModel;
+  }
+
+  // If no model exists, try to load the default pre-trained model
+  try {
+    console.log('[Storage] No model found, loading default pre-trained model...');
+    const response = await fetch('/default-model.json');
+
+    if (!response.ok) {
+      console.log('[Storage] Default model not found');
+      return null;
+    }
+
+    const data = await response.json();
+
+    // Check if it's the combined format (dataset + model) or just the model
+    let model: ClassifierData | null = null;
+
+    if (data.model) {
+      // Combined format
+      model = data.model;
+      // Also load the dataset if available
+      if (data.dataset) {
+        await set(DATASET_KEY, data.dataset);
+        console.log('[Storage] Default dataset loaded');
+      }
+    } else if (data.type && Array.isArray(data.classes)) {
+      // Direct model format
+      model = data as ClassifierData;
+    }
+
+    if (model) {
+      // Save it to IndexedDB so we don't need to fetch it again
+      await set(MODEL_KEY, model);
+      console.log('[Storage] Default model loaded and saved');
+      return model;
+    }
+
+    return null;
+  } catch (error) {
+    console.error('[Storage] Failed to load default model:', error);
+    return null;
+  }
 }
 
 /**

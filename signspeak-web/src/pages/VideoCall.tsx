@@ -1,6 +1,6 @@
 /**
- * VideoCall.tsx - Enhanced Video Call with Live Captions & Sign Language
- * Beautiful UI with smooth animations and robust caption/sign synchronization
+ * VideoCall.tsx - Revolutionary Video Call with Anime.js Animations
+ * Beautiful UI with smooth anime.js animations and robust caption/sign synchronization
  */
 
 import React, { MutableRefObject, useCallback, useEffect, useRef, useState } from 'react';
@@ -10,6 +10,8 @@ import { useSpeechToText } from '../hooks/useSpeechToText';
 import { useASLRecognition } from '../hooks/useASLRecognition';
 import { toNaturalText } from '../lib/labels';
 import { Track } from 'livekit-client';
+import { animate, createScope, spring, stagger } from 'animejs';
+import styles from '../styles/videoCall.styles';
 
 interface Caption {
   id: string;
@@ -33,12 +35,102 @@ export function VideoCall() {
   const sendCaptionRef = useRef<(text: string) => void>(() => {
     console.warn('[VideoCall] Caption sender not ready yet.');
   });
+  const joinRootRef = useRef<HTMLDivElement>(null);
+  const joinScopeRef = useRef<any>(null);
 
   // Generate random room ID on mount
   useEffect(() => {
     const randomRoomId = `room-${Math.random().toString(36).substring(2, 9)}`;
     setRoomName(randomRoomId);
   }, []);
+
+  // Revolutionary anime.js entrance animation using createScope
+  useEffect(() => {
+    if (joinRootRef.current && !connectionToken) {
+      joinScopeRef.current = createScope({ root: joinRootRef.current }).add(self => {
+
+        // Dramatic card entrance with spring physics
+        animate('.join-card', {
+          opacity: [0, 1],
+          translateY: [100, 0],
+          rotate: [10, 0],
+          scale: [0.8, 1],
+          duration: 1200,
+          ease: spring({ mass: 1, stiffness: 280, damping: 20 }),
+        });
+
+        // Floating glow effect
+        animate('.card-glow', {
+          opacity: [0.02, 0.08, 0.02],
+          scale: [1, 1.2, 1],
+          rotate: [0, 180, 360],
+          duration: 8000,
+          loop: true,
+          ease: 'inOut(2)',
+        });
+
+        // Staggered children with bounce
+        animate('.animate-in', {
+          opacity: [0, 1],
+          translateY: [40, 0],
+          rotate: [-5, 0],
+          scale: [0.8, 1],
+          duration: 800,
+          delay: stagger(120, {start: 400}),
+          ease: spring({ bounce: 0.4 }),
+        });
+
+        // Title gradient shift
+        animate('.title', {
+          backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
+          duration: 6000,
+          loop: true,
+          ease: 'inOut(2)',
+        });
+
+        // Pulsing emoji
+        animate('.title', {
+          textShadow: [
+            '0 0 20px rgba(59, 130, 246, 0.3)',
+            '0 0 40px rgba(59, 130, 246, 0.6)',
+            '0 0 20px rgba(59, 130, 246, 0.3)',
+          ],
+          duration: 2000,
+          loop: true,
+          ease: 'inOut(2)',
+        });
+
+        // Input field focus animations
+        self?.add('focusInput', (target: HTMLElement) => {
+          animate(target, {
+            scale: [1, 1.02, 1],
+            boxShadow: [
+              '0 0 0 0px rgba(30, 58, 138, 0)',
+              '0 0 0 4px rgba(30, 58, 138, 0.2)',
+            ],
+            duration: 300,
+            ease: 'out(3)',
+          });
+        });
+
+        // Button hover with spring
+        self?.add('hoverButton', (target: HTMLElement, isHover: boolean) => {
+          animate(target, {
+            scale: isHover ? 1.05 : 1,
+            translateY: isHover ? -4 : 0,
+            boxShadow: isHover
+              ? '0 20px 60px rgba(59, 130, 246, 0.4)'
+              : '0 0 40px rgba(59, 130, 246, 0.4)',
+            duration: 400,
+            ease: spring({ bounce: isHover ? 0.5 : 0.3 }),
+          });
+        });
+
+      });
+
+      return () => joinScopeRef.current?.revert();
+    }
+  }, [connectionToken]);
 
   const speech = useSpeechToText({
     continuous: true,
@@ -137,14 +229,128 @@ export function VideoCall() {
 
   if (!connectionToken) {
     return (
-      <div style={styles.joinContainer}>
-        <div style={styles.joinCard}>
-          <div style={styles.titleGlow}>
-            <h1 style={styles.title}>🦆 DuckSpeak</h1>
+      <>
+        {/* Global Navigation Header */}
+        <header style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 1000,
+          background: 'rgba(10, 14, 26, 0.8)',
+          backdropFilter: 'blur(12px)',
+          borderBottom: '1px solid rgba(59, 130, 246, 0.2)',
+        }}>
+          <div style={{
+            maxWidth: '1400px',
+            margin: '0 auto',
+            padding: '1rem 1.5rem',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}>
+            {/* Logo */}
+            <a
+              href="/"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                textDecoration: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              <img src="/logo.svg" alt="DuckSpeak Logo" style={{ width: '2.5rem', height: '2.5rem' }} />
+              <span style={{
+                fontSize: '1.5rem',
+                fontWeight: 800,
+                background: 'linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                fontFamily: "'Space Grotesk', 'Inter', sans-serif",
+              }}>
+                DuckSpeak
+              </span>
+            </a>
+
+            {/* Navigation */}
+            <nav style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '2rem',
+            }}>
+              <a
+                href="/#features"
+                style={{
+                  color: '#94a3b8',
+                  textDecoration: 'none',
+                  fontSize: '1rem',
+                  fontWeight: 500,
+                  transition: 'color 0.2s ease',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.color = '#fff'}
+                onMouseLeave={(e) => e.currentTarget.style.color = '#94a3b8'}
+              >
+                Features
+              </a>
+              <a
+                href="/#training"
+                style={{
+                  color: '#94a3b8',
+                  textDecoration: 'none',
+                  fontSize: '1rem',
+                  fontWeight: 500,
+                  transition: 'color 0.2s ease',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.color = '#fff'}
+                onMouseLeave={(e) => e.currentTarget.style.color = '#94a3b8'}
+              >
+                Training
+              </a>
+              <a
+                href="/#how-it-works"
+                style={{
+                  color: '#94a3b8',
+                  textDecoration: 'none',
+                  fontSize: '1rem',
+                  fontWeight: 500,
+                  transition: 'color 0.2s ease',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.color = '#fff'}
+                onMouseLeave={(e) => e.currentTarget.style.color = '#94a3b8'}
+              >
+                How It Works
+              </a>
+              <a
+                href="/collect-train"
+                style={{
+                  color: '#94a3b8',
+                  textDecoration: 'none',
+                  fontSize: '1rem',
+                  fontWeight: 500,
+                  transition: 'color 0.2s ease',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.color = '#fff'}
+                onMouseLeave={(e) => e.currentTarget.style.color = '#94a3b8'}
+              >
+                Training Studio
+              </a>
+            </nav>
+          </div>
+        </header>
+
+        <div ref={joinRootRef} style={{...styles.joinContainer, paddingTop: '8rem'}}>
+          <div className="join-card" style={{...styles.joinCard, opacity: 0}}>
+          <div className="card-glow" style={{...styles.joinCardGlow, backgroundSize: '200% 200%'}}></div>
+          <div className="animate-in" style={styles.titleGlow}>
+            <h1 className="title" style={{...styles.title, backgroundSize: '200% auto', display: 'flex', alignItems: 'center', gap: '0.75rem', justifyContent: 'center'}}>
+              <img src="/logo.svg" alt="DuckSpeak Logo" style={{ width: '3.5rem', height: '3.5rem' }} />
+              DuckSpeak
+            </h1>
             <p style={styles.tagline}>Real-Time ASL Video Calling</p>
           </div>
 
-          <div style={styles.inputGroup}>
+          <div className="animate-in" style={styles.inputGroup}>
             <label style={styles.label}>Your Name</label>
             <input
               type="text"
@@ -152,11 +358,12 @@ export function VideoCall() {
               onChange={(e) => setParticipantName(e.target.value)}
               placeholder="Enter your name"
               style={styles.input}
+              onFocus={(e) => joinScopeRef.current?.methods.focusInput?.(e.target)}
               onKeyDown={(e) => e.key === 'Enter' && handleJoinCall()}
             />
           </div>
 
-          <div style={styles.inputGroup}>
+          <div className="animate-in" style={styles.inputGroup}>
             <label style={styles.label}>Room Name</label>
             <input
               type="text"
@@ -164,6 +371,7 @@ export function VideoCall() {
               onChange={(e) => setRoomName(e.target.value)}
               placeholder="Room name (auto-generated)"
               style={styles.input}
+              onFocus={(e) => joinScopeRef.current?.methods.focusInput?.(e.target)}
               onKeyDown={(e) => e.key === 'Enter' && handleJoinCall()}
             />
             <p style={styles.hint}>
@@ -172,8 +380,11 @@ export function VideoCall() {
           </div>
 
           <button
+            className="animate-in join-button"
             onClick={handleJoinCall}
             disabled={isConnecting || !participantName.trim()}
+            onMouseEnter={(e) => joinScopeRef.current?.methods.hoverButton?.(e.currentTarget, true)}
+            onMouseLeave={(e) => joinScopeRef.current?.methods.hoverButton?.(e.currentTarget, false)}
             style={{
               ...styles.button,
               ...styles.joinButton,
@@ -183,14 +394,14 @@ export function VideoCall() {
             {isConnecting ? '🔄 Connecting…' : '🎥 Join Call'}
           </button>
 
-          {error && <div style={styles.error}>{error}</div>}
+          {error && <div className="animate-in" style={styles.error}>{error}</div>}
           {speech.error && !speech.isSupported && (
-            <div style={styles.warning}>
+            <div className="animate-in" style={styles.warning}>
               ⚠️ Speech Recognition not supported. Captions will not work.
             </div>
           )}
 
-          <div style={styles.features}>
+          <div className="animate-in" style={styles.features}>
             <h3 style={styles.featuresTitle}>✨ Features</h3>
             <ul style={styles.featuresList}>
               <li>📹 HD video calling with multiple participants</li>
@@ -200,7 +411,8 @@ export function VideoCall() {
             </ul>
           </div>
         </div>
-      </div>
+        </div>
+      </>
     );
   }
 
@@ -255,7 +467,7 @@ function RemoteParticipants({ groupedRemoteCaptions, linkCopied, copyLinkToClipb
   // If no remote participants, show waiting message
   if (remoteParticipants.length === 0) {
     return (
-      <div style={styles.videoCard}>
+      <div className="video-card" style={styles.videoCard}>
         <div style={styles.videoContainer}>
           <div style={styles.video} />
           <div style={styles.videoLabel}>Waiting for others...</div>
@@ -280,7 +492,7 @@ function RemoteParticipants({ groupedRemoteCaptions, linkCopied, copyLinkToClipb
         const videoTrack = participant.getTrackPublication(Track.Source.Camera)?.videoTrack;
 
         return (
-          <div key={participant.identity} style={styles.videoCard}>
+          <div key={participant.identity} className="video-card" style={styles.videoCard}>
             <div style={styles.videoContainer}>
               <video
                 ref={(el) => {
@@ -370,8 +582,6 @@ function ConnectedVideoCall({
   const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
   const [selectedAudioDevice, setSelectedAudioDevice] = useState<string>('');
   const [selectedVideoDevice, setSelectedVideoDevice] = useState<string>('');
-  const [audioEnabled, setAudioEnabled] = useState(true);
-  const [videoEnabled, setVideoEnabled] = useState(true);
   const [showAudioMenu, setShowAudioMenu] = useState(false);
   const [showVideoMenu, setShowVideoMenu] = useState(false);
   const localVideoElementRef = useRef<HTMLVideoElement | null>(null);
@@ -379,6 +589,8 @@ function ConnectedVideoCall({
   const processingVideoRef = useRef<HTMLVideoElement | null>(null);
   const lastProcessedTranscript = useRef<string>('');
   const animationFrameIdRef = useRef<number | null>(null);
+  const callRootRef = useRef<HTMLDivElement>(null);
+  const callScopeRef = useRef<any>(null);
 
   const {
     localVideoRef,
@@ -396,6 +608,93 @@ function ConnectedVideoCall({
   } = useLiveKit({
     onRemoteCaptionReceived,
   });
+
+  // Revolutionary anime.js animations for call interface
+  useEffect(() => {
+    if (callRootRef.current) {
+      callScopeRef.current = createScope({ root: callRootRef.current }).add(self => {
+
+        // Header entrance with slide down
+        animate('.call-header', {
+          opacity: [0, 1],
+          translateY: [-60, 0],
+          duration: 800,
+          ease: spring({ bounce: 0.3 }),
+        });
+
+        // Status dot pulse
+        animate('.status-dot', {
+          scale: [1, 1.3, 1],
+          boxShadow: [
+            '0 0 16px rgba(20, 184, 166, 0.6)',
+            '0 0 32px rgba(20, 184, 166, 1)',
+            '0 0 16px rgba(20, 184, 166, 0.6)',
+          ],
+          duration: 2000,
+          loop: true,
+          ease: 'inOut(2)',
+        });
+
+        // Video cards stagger entrance
+        animate('.video-card', {
+          opacity: [0, 1],
+          scale: [0.9, 1],
+          rotate: [5, 0],
+          translateY: [60, 0],
+          duration: 1000,
+          delay: stagger(200),
+          ease: spring({ bounce: 0.3 }),
+        });
+
+        // Caption slide-in animation
+        self?.add('slideInCaption', (target: HTMLElement) => {
+          animate(target, {
+            opacity: [0, 1],
+            translateX: [-100, 0],
+            scale: [0.8, 1],
+            duration: 600,
+            ease: spring({ bounce: 0.4 }),
+          });
+        });
+
+        // Caption slide-out animation
+        self?.add('slideOutCaption', (target: HTMLElement) => {
+          animate(target, {
+            opacity: [1, 0],
+            translateX: [0, 100],
+            scale: [1, 0.8],
+            duration: 400,
+            ease: 'out(3)',
+          });
+        });
+
+        // Control button hover with bounce
+        self?.add('hoverControl', (target: HTMLElement, isHover: boolean) => {
+          animate(target, {
+            scale: isHover ? 1.15 : 1,
+            rotate: isHover ? [0, -5, 5, 0] : 0,
+            duration: isHover ? 400 : 300,
+            ease: spring({ bounce: isHover ? 0.6 : 0.2 }),
+          });
+        });
+
+        // Room code badge pulsing glow
+        animate('.room-badge', {
+          boxShadow: [
+            '0 0 20px rgba(59, 130, 246, 0.2)',
+            '0 0 40px rgba(59, 130, 246, 0.4)',
+            '0 0 20px rgba(59, 130, 246, 0.2)',
+          ],
+          duration: 3000,
+          loop: true,
+          ease: 'inOut(2)',
+        });
+
+      });
+
+      return () => callScopeRef.current?.revert();
+    }
+  }, []);
 
   // Enumerate media devices
   useEffect(() => {
@@ -458,17 +757,21 @@ function ConnectedVideoCall({
   };
 
   // Handle audio enable/disable
-  const handleAudioToggle = async () => {
-    const nextEnabled = !audioEnabled;
-    setAudioEnabled(nextEnabled);
+  const handleAudioToggle = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('[VideoCall] Audio toggle clicked');
     await toggleMute();
+    setShowAudioMenu(false);
   };
 
   // Handle video enable/disable
-  const handleVideoToggle = async () => {
-    const nextEnabled = !videoEnabled;
-    setVideoEnabled(nextEnabled);
+  const handleVideoToggle = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('[VideoCall] Video toggle clicked');
     await toggleVideo();
+    setShowVideoMenu(false);
   };
 
   // Close dropdowns when clicking outside
@@ -730,16 +1033,27 @@ function ConnectedVideoCall({
   const groupedRemoteCaptions = groupCaptionsByTime(remoteCaptions);
 
   return (
-    <div style={styles.callContainer}>
+    <div ref={callRootRef} style={styles.callContainer}>
       {/* Header with controls */}
-      <header style={styles.header}>
+      <header className="call-header" style={styles.header}>
         <div style={styles.headerLeft}>
-          <h1 style={styles.headerTitle}>🦆 DuckSpeak</h1>
+          <a
+            href="/"
+            style={{
+              ...styles.headerTitle,
+              textDecoration: 'none',
+              cursor: 'pointer',
+              display: 'inline-block',
+            }}
+          >
+            <img src="/logo.svg" alt="DuckSpeak Logo" style={{ width: '2rem', height: '2rem', marginRight: '0.5rem' }} />
+            DuckSpeak
+          </a>
           <div style={styles.statusBadge}>
-            <span style={styles.statusDot}></span>
+            <span className="status-dot" style={styles.statusDot}></span>
             {hasRemoteParticipant ? 'Connected' : 'Waiting...'}
           </div>
-          <div style={styles.roomCodeBadge}>
+          <div className="room-badge" style={styles.roomCodeBadge}>
             <span style={styles.roomCodeText}>{roomName}</span>
             <button
               onClick={copyRoomCodeToClipboard}
@@ -755,7 +1069,10 @@ function ConnectedVideoCall({
           {/* Audio Mixer Dropdown */}
           <div style={styles.mixerContainer} data-mixer-menu>
             <button
-              onClick={() => setShowAudioMenu(!showAudioMenu)}
+              onClick={() => {
+                setShowAudioMenu(!showAudioMenu);
+                setShowVideoMenu(false);
+              }}
               disabled={isConnecting}
               style={{
                 ...styles.controlBtn,
@@ -766,13 +1083,17 @@ function ConnectedVideoCall({
               {isMuted ? '🔇' : '🎤'}
             </button>
             {showAudioMenu && (
-              <div style={styles.dropdownMenu}>
+              <div style={{
+                ...styles.dropdownMenu,
+                animation: 'slideDown 0.2s ease-out',
+              }}>
                 <div style={styles.dropdownHeader}>Audio Input</div>
                 <button
+                  type="button"
                   onClick={handleAudioToggle}
                   style={{
                     ...styles.dropdownItem,
-                    ...(isMuted && styles.dropdownItemDisabled),
+                    cursor: 'pointer',
                   }}
                 >
                   {isMuted ? '❌ Disabled' : '✅ Enabled'}
@@ -799,7 +1120,10 @@ function ConnectedVideoCall({
           {/* Video Mixer Dropdown */}
           <div style={styles.mixerContainer} data-mixer-menu>
             <button
-              onClick={() => setShowVideoMenu(!showVideoMenu)}
+              onClick={() => {
+                setShowVideoMenu(!showVideoMenu);
+                setShowAudioMenu(false);
+              }}
               disabled={isConnecting}
               style={{
                 ...styles.controlBtn,
@@ -810,13 +1134,17 @@ function ConnectedVideoCall({
               {isVideoOff ? '📹' : '📷'}
             </button>
             {showVideoMenu && (
-              <div style={styles.dropdownMenu}>
+              <div style={{
+                ...styles.dropdownMenu,
+                animation: 'slideDown 0.2s ease-out',
+              }}>
                 <div style={styles.dropdownHeader}>Video Input</div>
                 <button
+                  type="button"
                   onClick={handleVideoToggle}
                   style={{
                     ...styles.dropdownItem,
-                    ...(isVideoOff && styles.dropdownItemDisabled),
+                    cursor: 'pointer',
                   }}
                 >
                   {isVideoOff ? '❌ Disabled' : '✅ Enabled'}
@@ -842,6 +1170,8 @@ function ConnectedVideoCall({
 
           <button
             onClick={onToggleSignRecognition}
+            onMouseEnter={(e) => callScopeRef.current?.methods.hoverControl?.(e.currentTarget, true)}
+            onMouseLeave={(e) => callScopeRef.current?.methods.hoverControl?.(e.currentTarget, false)}
             style={{
               ...styles.controlBtn,
               ...(signRecognitionMode && styles.controlBtnActive),
@@ -853,6 +1183,8 @@ function ConnectedVideoCall({
 
           <button
             onClick={() => setSpeechRecognitionMode(!speechRecognitionMode)}
+            onMouseEnter={(e) => callScopeRef.current?.methods.hoverControl?.(e.currentTarget, true)}
+            onMouseLeave={(e) => callScopeRef.current?.methods.hoverControl?.(e.currentTarget, false)}
             style={{
               ...styles.controlBtn,
               ...(speechRecognitionMode && styles.controlBtnActive),
@@ -864,6 +1196,8 @@ function ConnectedVideoCall({
 
           <button
             onClick={copyLinkToClipboard}
+            onMouseEnter={(e) => callScopeRef.current?.methods.hoverControl?.(e.currentTarget, true)}
+            onMouseLeave={(e) => callScopeRef.current?.methods.hoverControl?.(e.currentTarget, false)}
             style={styles.controlBtn}
             title="Copy share link"
           >
@@ -872,6 +1206,8 @@ function ConnectedVideoCall({
 
           <button
             onClick={handleLeaveClick}
+            onMouseEnter={(e) => callScopeRef.current?.methods.hoverControl?.(e.currentTarget, true)}
+            onMouseLeave={(e) => callScopeRef.current?.methods.hoverControl?.(e.currentTarget, false)}
             style={styles.leaveBtn}
             title="Leave call"
           >
@@ -912,7 +1248,7 @@ function ConnectedVideoCall({
       {/* Main video grid */}
       <div style={styles.videoGrid}>
         {/* Local video */}
-        <div style={styles.videoCard}>
+        <div className="video-card" style={styles.videoCard}>
           <div style={styles.videoContainer}>
             {/* Hidden processing video for ASL detection - LiveKit stream */}
             <video
@@ -932,19 +1268,43 @@ function ConnectedVideoCall({
             <div style={styles.videoLabel}>
               {participantName} (You)
             </div>
+
+            <div style={{
+              position: 'absolute' as const,
+              top: '70px',
+              left: '20px',
+              display: 'flex',
+              flexDirection: 'column' as const,
+              gap: '8px',
+              zIndex: 10,
+            }}>
+              {signRecognitionMode && (
+                <div style={{
+                  ...styles.signModeIndicator,
+                  position: 'relative' as const,
+                  bottom: 'auto',
+                  right: 'auto',
+                  left: 0,
+                  top: 0,
+                }}>
+                  🤟 Sign Mode
+                </div>
+              )}
+              {speechRecognitionMode && (
+                <div style={{
+                  ...styles.speechModeIndicator,
+                  position: 'relative' as const,
+                  bottom: 'auto',
+                  left: 0,
+                  top: 0,
+                }}>
+                  💬 Speech Mode
+                </div>
+              )}
+            </div>
             {speechRecognitionMode && speech.isListening && (
               <div style={styles.listeningIndicator}>
                 🎙️ Listening
-              </div>
-            )}
-            {signRecognitionMode && (
-              <div style={styles.signModeIndicator}>
-                🤟 Sign Mode
-              </div>
-            )}
-            {speechRecognitionMode && (
-              <div style={styles.speechModeIndicator}>
-                💬 Speech Mode
               </div>
             )}
           </div>
@@ -991,626 +1351,6 @@ function ConnectedVideoCall({
   );
 }
 
-const styles = {
-  // Join screen styles
-  joinContainer: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: '100vh',
-    background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%)',
-    padding: '20px',
-  } as const,
-  joinCard: {
-    maxWidth: '500px',
-    width: '100%',
-    padding: '50px 40px',
-    background: 'rgba(26, 26, 46, 0.8)',
-    backdropFilter: 'blur(10px)',
-    borderRadius: '24px',
-    border: '1px solid rgba(0, 255, 136, 0.2)',
-    boxShadow: '0 20px 60px rgba(0, 255, 136, 0.1)',
-  } as const,
-  titleGlow: {
-    textAlign: 'center' as const,
-    marginBottom: '40px',
-  } as const,
-  title: {
-    fontSize: '48px',
-    fontWeight: 'bold' as const,
-    background: 'linear-gradient(135deg, #00ff88, #00ccff)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-    marginBottom: '10px',
-    textShadow: '0 0 30px rgba(0, 255, 136, 0.5)',
-  } as const,
-  tagline: {
-    fontSize: '16px',
-    color: '#7effa8',
-    opacity: 0.9,
-  } as const,
-  inputGroup: {
-    marginBottom: '24px',
-  } as const,
-  label: {
-    display: 'block',
-    fontSize: '14px',
-    fontWeight: '600' as const,
-    color: '#7effa8',
-    marginBottom: '8px',
-    letterSpacing: '0.5px',
-  } as const,
-  input: {
-    width: '100%',
-    padding: '14px 16px',
-    fontSize: '16px',
-    background: 'rgba(0, 0, 0, 0.4)',
-    color: '#fff',
-    border: '2px solid rgba(0, 255, 136, 0.3)',
-    borderRadius: '12px',
-    outline: 'none',
-    transition: 'all 0.3s ease',
-  } as const,
-  hint: {
-    fontSize: '12px',
-    color: '#888',
-    marginTop: '8px',
-    fontStyle: 'italic' as const,
-  } as const,
-  button: {
-    padding: '16px 32px',
-    fontSize: '16px',
-    fontWeight: '600' as const,
-    border: 'none',
-    borderRadius: '12px',
-    cursor: 'pointer',
-    transition: 'all 0.3s ease',
-    letterSpacing: '0.5px',
-  } as const,
-  joinButton: {
-    width: '100%',
-    background: 'linear-gradient(135deg, #00ff88, #00ccff)',
-    color: '#0a0a0a',
-    boxShadow: '0 10px 30px rgba(0, 255, 136, 0.3)',
-  } as const,
-  buttonDisabled: {
-    background: '#333',
-    color: '#666',
-    cursor: 'not-allowed',
-    boxShadow: 'none',
-  } as const,
-  error: {
-    marginTop: '20px',
-    padding: '14px',
-    background: 'rgba(255, 51, 51, 0.15)',
-    border: '1px solid rgba(255, 51, 51, 0.4)',
-    borderRadius: '12px',
-    color: '#ff6666',
-    fontSize: '14px',
-  } as const,
-  warning: {
-    marginTop: '20px',
-    padding: '14px',
-    background: 'rgba(255, 153, 0, 0.15)',
-    border: '1px solid rgba(255, 153, 0, 0.4)',
-    borderRadius: '12px',
-    color: '#ffaa44',
-    fontSize: '14px',
-  } as const,
-  features: {
-    marginTop: '40px',
-    padding: '24px',
-    background: 'rgba(0, 255, 136, 0.05)',
-    borderRadius: '16px',
-    border: '1px solid rgba(0, 255, 136, 0.1)',
-  } as const,
-  featuresTitle: {
-    fontSize: '18px',
-    fontWeight: '600' as const,
-    color: '#7effa8',
-    marginBottom: '16px',
-  } as const,
-  featuresList: {
-    listStyle: 'none',
-    padding: 0,
-    color: '#aaa',
-    lineHeight: 2,
-  } as const,
-
-  // Call screen styles
-  callContainer: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    height: '100vh',
-    background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%)',
-    color: '#fff',
-    overflow: 'hidden',
-  } as const,
-  header: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '16px 24px',
-    background: 'rgba(0, 0, 0, 0.6)',
-    backdropFilter: 'blur(10px)',
-    borderBottom: '1px solid rgba(0, 255, 136, 0.2)',
-    zIndex: 10,
-  } as const,
-  headerLeft: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '20px',
-  } as const,
-  headerTitle: {
-    fontSize: '24px',
-    fontWeight: 'bold' as const,
-    background: 'linear-gradient(135deg, #00ff88, #00ccff)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-  } as const,
-  statusBadge: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '6px 16px',
-    background: 'rgba(0, 255, 136, 0.1)',
-    borderRadius: '20px',
-    fontSize: '14px',
-    color: '#7effa8',
-  } as const,
-  statusDot: {
-    width: '8px',
-    height: '8px',
-    borderRadius: '50%',
-    background: '#00ff88',
-    animation: 'pulse 2s infinite',
-  } as const,
-  roomCodeBadge: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '6px 12px',
-    background: 'rgba(0, 204, 255, 0.1)',
-    borderRadius: '20px',
-    fontSize: '13px',
-    fontFamily: 'monospace',
-  } as const,
-  roomCodeText: {
-    color: '#66ccff',
-    fontWeight: '600' as const,
-    letterSpacing: '0.5px',
-  } as const,
-  roomCodeCopyBtn: {
-    border: 'none',
-    background: 'transparent',
-    color: '#66ccff',
-    fontSize: '16px',
-    cursor: 'pointer',
-    padding: '2px 4px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'all 0.2s ease',
-  } as const,
-  headerControls: {
-    display: 'flex',
-    gap: '12px',
-  } as const,
-  controlBtn: {
-    width: '48px',
-    height: '48px',
-    border: 'none',
-    borderRadius: '12px',
-    background: 'rgba(255, 255, 255, 0.1)',
-    color: '#fff',
-    fontSize: '20px',
-    cursor: 'pointer',
-    transition: 'all 0.3s ease',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  } as const,
-  controlBtnMuted: {
-    background: 'rgba(255, 51, 51, 0.2)',
-    color: '#ff6666',
-  } as const,
-  controlBtnActive: {
-    background: 'linear-gradient(135deg, #00ff88, #00ccff)',
-    color: '#0a0a0a',
-  } as const,
-  mixerContainer: {
-    position: 'relative' as const,
-  } as const,
-  dropdownMenu: {
-    position: 'absolute' as const,
-    top: '56px',
-    right: '0',
-    minWidth: '250px',
-    background: 'rgba(20, 20, 30, 0.98)',
-    backdropFilter: 'blur(10px)',
-    border: '1px solid rgba(0, 255, 136, 0.3)',
-    borderRadius: '12px',
-    padding: '8px',
-    boxShadow: '0 10px 40px rgba(0, 0, 0, 0.5)',
-    zIndex: 1000,
-  } as const,
-  dropdownHeader: {
-    padding: '8px 12px',
-    fontSize: '12px',
-    fontWeight: '600' as const,
-    color: '#7effa8',
-    textTransform: 'uppercase' as const,
-    letterSpacing: '1px',
-  } as const,
-  dropdownItem: {
-    width: '100%',
-    padding: '10px 12px',
-    border: 'none',
-    background: 'transparent',
-    color: '#fff',
-    fontSize: '14px',
-    textAlign: 'left' as const,
-    cursor: 'pointer',
-    borderRadius: '8px',
-    transition: 'all 0.2s ease',
-    display: 'block',
-  } as const,
-  dropdownItemSelected: {
-    background: 'rgba(0, 255, 136, 0.15)',
-    color: '#7effa8',
-  } as const,
-  dropdownItemDisabled: {
-    opacity: 0.5,
-  } as const,
-  dropdownDivider: {
-    height: '1px',
-    background: 'rgba(255, 255, 255, 0.1)',
-    margin: '8px 0',
-  } as const,
-  leaveBtn: {
-    padding: '12px 24px',
-    border: 'none',
-    borderRadius: '12px',
-    background: 'rgba(255, 51, 51, 0.8)',
-    color: '#fff',
-    fontSize: '14px',
-    fontWeight: '600' as const,
-    cursor: 'pointer',
-    transition: 'all 0.3s ease',
-  } as const,
-  errorBanner: {
-    padding: '12px 24px',
-    background: 'rgba(255, 51, 51, 0.2)',
-    borderBottom: '1px solid rgba(255, 51, 51, 0.4)',
-    color: '#ff6666',
-    fontSize: '14px',
-  } as const,
-  infoBanner: {
-    padding: '12px 24px',
-    background: 'rgba(0, 136, 255, 0.2)',
-    borderBottom: '1px solid rgba(0, 136, 255, 0.4)',
-    color: '#66ccff',
-    fontSize: '14px',
-  } as const,
-  successBanner: {
-    padding: '12px 24px',
-    background: 'rgba(0, 255, 136, 0.2)',
-    borderBottom: '1px solid rgba(0, 255, 136, 0.4)',
-    color: '#7effa8',
-    fontSize: '14px',
-  } as const,
-  videoGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
-    gap: '24px',
-    padding: '24px',
-    flex: 1,
-    overflow: 'auto',
-    alignContent: 'start',
-  } as const,
-  videoCard: {
-    position: 'relative' as const,
-    borderRadius: '20px',
-    background: '#000',
-    border: '2px solid rgba(0, 255, 136, 0.2)',
-    boxShadow: '0 10px 40px rgba(0, 0, 0, 0.5)',
-    display: 'flex',
-    flexDirection: 'column' as const,
-  } as const,
-  videoContainer: {
-    position: 'relative' as const,
-    width: '100%',
-    minHeight: '400px',
-    flex: '0 0 auto',
-    overflow: 'hidden',
-    borderTopLeftRadius: '20px',
-    borderTopRightRadius: '20px',
-  } as const,
-  hiddenProcessingVideo: {
-    position: 'absolute' as const,
-    width: '100%',
-    height: '100%',
-    objectFit: 'cover' as const,
-    opacity: 0,
-    pointerEvents: 'none' as const,
-    zIndex: 1,
-  } as const,
-  video: {
-    position: 'relative' as const,
-    width: '100%',
-    height: '100%',
-    objectFit: 'cover' as const,
-    backgroundColor: '#111',
-    willChange: 'transform',
-    backfaceVisibility: 'hidden' as const,
-    WebkitBackfaceVisibility: 'hidden',
-    zIndex: 2,
-  } as const,
-  videoLabel: {
-    position: 'absolute' as const,
-    top: '16px',
-    left: '16px',
-    padding: '8px 16px',
-    background: 'rgba(0, 0, 0, 0.7)',
-    backdropFilter: 'blur(10px)',
-    borderRadius: '8px',
-    fontSize: '14px',
-    fontWeight: '600' as const,
-    color: '#7effa8',
-    border: '1px solid rgba(0, 255, 136, 0.3)',
-  } as const,
-  listeningIndicator: {
-    position: 'absolute' as const,
-    top: '16px',
-    right: '16px',
-    padding: '8px 16px',
-    background: 'rgba(0, 136, 255, 0.7)',
-    backdropFilter: 'blur(10px)',
-    borderRadius: '8px',
-    fontSize: '14px',
-    fontWeight: '600' as const,
-    animation: 'pulse 1.5s infinite',
-  } as const,
-  signModeIndicator: {
-    position: 'absolute' as const,
-    top: '16px',
-    right: '16px',
-    padding: '8px 16px',
-    background: 'linear-gradient(135deg, #00ff88, #00ccff)',
-    borderRadius: '8px',
-    fontSize: '14px',
-    fontWeight: '600' as const,
-    color: '#0a0a0a',
-    animation: 'pulse 1.5s infinite',
-  } as const,
-  speechModeIndicator: {
-    position: 'absolute' as const,
-    top: '56px',
-    right: '16px',
-    padding: '8px 16px',
-    background: 'linear-gradient(135deg, #ff8800, #ffcc00)',
-    borderRadius: '8px',
-    fontSize: '14px',
-    fontWeight: '600' as const,
-    color: '#0a0a0a',
-    animation: 'pulse 1.5s infinite',
-  } as const,
-  waitingOverlay: {
-    position: 'absolute' as const,
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    background: 'rgba(0, 0, 0, 0.8)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  } as const,
-  waitingText: {
-    textAlign: 'center' as const,
-    color: '#aaa',
-  } as const,
-  spinner: {
-    width: '40px',
-    height: '40px',
-    border: '4px solid rgba(0, 255, 136, 0.2)',
-    borderTop: '4px solid #00ff88',
-    borderRadius: '50%',
-    margin: '0 auto 20px',
-    animation: 'spin 1s linear infinite',
-  } as const,
-  shareButton: {
-    marginTop: '20px',
-    padding: '12px 24px',
-    border: 'none',
-    borderRadius: '8px',
-    background: 'linear-gradient(135deg, #00ff88, #00ccff)',
-    color: '#0a0a0a',
-    fontSize: '14px',
-    fontWeight: '600' as const,
-    cursor: 'pointer',
-  } as const,
-  captionOverlay: {
-    position: 'absolute' as const,
-    bottom: '20px',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    maxWidth: '80%',
-    animation: 'slideUp 0.3s ease',
-  } as const,
-  captionBubble: {
-    padding: '12px 20px',
-    background: 'rgba(0, 0, 0, 0.85)',
-    backdropFilter: 'blur(10px)',
-    borderRadius: '12px',
-    border: '2px solid rgba(0, 255, 136, 0.4)',
-    fontSize: '16px',
-    color: '#fff',
-    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
-  } as const,
-  remoteCaptionBubble: {
-    border: '2px solid rgba(0, 204, 255, 0.4)',
-  } as const,
-  signDisplay: {
-    position: 'absolute' as const,
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
-    textAlign: 'center' as const,
-    animation: 'scaleIn 0.4s ease',
-  } as const,
-  signLabel: {
-    marginTop: '12px',
-    padding: '8px 16px',
-    background: 'rgba(0, 0, 0, 0.85)',
-    backdropFilter: 'blur(10px)',
-    borderRadius: '8px',
-    fontSize: '14px',
-    color: '#7effa8',
-  } as const,
-  aslRecognitionDisplay: {
-    position: 'absolute' as const,
-    bottom: '80px',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    background: 'rgba(0, 255, 136, 0.95)',
-    backdropFilter: 'blur(10px)',
-    padding: '16px 24px',
-    borderRadius: '16px',
-    border: '2px solid rgba(0, 255, 136, 1)',
-    boxShadow: '0 8px 32px rgba(0, 255, 136, 0.4)',
-    zIndex: 10,
-    animation: 'scaleIn 0.3s ease',
-  } as const,
-  aslGestureLabel: {
-    fontSize: '24px',
-    fontWeight: 'bold' as const,
-    color: '#000',
-    textAlign: 'center' as const,
-    marginBottom: '4px',
-  } as const,
-  aslConfidence: {
-    fontSize: '12px',
-    color: '#004d26',
-    textAlign: 'center' as const,
-    fontWeight: '600' as const,
-  } as const,
-  captionTextBox: {
-    background: 'rgba(0, 0, 0, 0.9)',
-    backdropFilter: 'blur(10px)',
-    borderTop: '2px solid rgba(0, 255, 136, 0.3)',
-    padding: '16px',
-    borderBottomLeftRadius: '20px',
-    borderBottomRightRadius: '20px',
-  } as const,
-  captionTextBoxHeader: {
-    fontSize: '12px',
-    fontWeight: '600' as const,
-    color: '#7effa8',
-    marginBottom: '8px',
-    textTransform: 'uppercase' as const,
-    letterSpacing: '0.5px',
-  } as const,
-  captionTextBoxContent: {
-    minHeight: '60px',
-    maxHeight: '120px',
-    overflowY: 'auto' as const,
-  } as const,
-  captionTextLine: {
-    fontSize: '16px',
-    color: '#fff',
-    lineHeight: 1.5,
-    display: 'flex',
-    gap: '8px',
-    alignItems: 'flex-start',
-  } as const,
-  captionIcon: {
-    fontSize: '18px',
-    flexShrink: 0,
-  } as const,
-  captionTextEmpty: {
-    fontSize: '14px',
-    color: '#666',
-    fontStyle: 'italic' as const,
-    textAlign: 'center' as const,
-    padding: '20px 0',
-  } as const,
-  captionSidebar: {
-    position: 'absolute' as const,
-    right: '24px',
-    top: '100px',
-    bottom: '24px',
-    width: '320px',
-    background: 'rgba(0, 0, 0, 0.7)',
-    backdropFilter: 'blur(10px)',
-    borderRadius: '20px',
-    border: '1px solid rgba(0, 255, 136, 0.2)',
-    padding: '20px',
-    display: 'flex',
-    flexDirection: 'column' as const,
-    zIndex: 5,
-  } as const,
-  sidebarTitle: {
-    fontSize: '16px',
-    fontWeight: '600' as const,
-    color: '#7effa8',
-    marginBottom: '16px',
-    paddingBottom: '12px',
-    borderBottom: '1px solid rgba(0, 255, 136, 0.2)',
-  } as const,
-  captionList: {
-    flex: 1,
-    overflowY: 'auto' as const,
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '12px',
-  } as const,
-  emptyCaptions: {
-    color: '#666',
-    fontStyle: 'italic' as const,
-    textAlign: 'center' as const,
-    marginTop: '40px',
-  } as const,
-  captionItem: {
-    padding: '12px',
-    borderRadius: '12px',
-    fontSize: '13px',
-    animation: 'fadeIn 0.3s ease',
-  } as const,
-  localCaptionItem: {
-    background: 'rgba(0, 255, 136, 0.1)',
-    border: '1px solid rgba(0, 255, 136, 0.3)',
-  } as const,
-  remoteCaptionItem: {
-    background: 'rgba(0, 204, 255, 0.1)',
-    border: '1px solid rgba(0, 204, 255, 0.3)',
-  } as const,
-  captionSender: {
-    fontSize: '11px',
-    color: '#7effa8',
-    fontWeight: '600' as const,
-    marginBottom: '4px',
-  } as const,
-  captionText: {
-    color: '#fff',
-    lineHeight: 1.5,
-    marginBottom: '4px',
-  } as const,
-  captionTime: {
-    fontSize: '10px',
-    color: '#666',
-  } as const,
-  speechNotSupported: {
-    marginTop: '12px',
-    padding: '12px',
-    background: 'rgba(255, 153, 0, 0.15)',
-    border: '1px solid rgba(255, 153, 0, 0.3)',
-    borderRadius: '8px',
-    color: '#ffaa44',
-    fontSize: '12px',
-    textAlign: 'center' as const,
-  } as const,
-} as const;
 
 // Add these to your global CSS or create a separate CSS file
 const globalStyles = `
