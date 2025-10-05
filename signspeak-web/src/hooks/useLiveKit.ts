@@ -10,6 +10,7 @@ import {
   RemoteTrack,
   RemoteTrackPublication,
   RemoteVideoTrack,
+  RemoteAudioTrack,
   Room,
   RoomEvent,
   Track,
@@ -73,6 +74,7 @@ export function useLiveKit(options: UseLiveKitOptions = {}): UseLiveKitReturn {
   const remoteVideoElementRef = useRef<HTMLVideoElement | null>(null);
   const localVideoTrackRef = useRef<LocalVideoTrack | null>(null);
   const remoteVideoTrackRef = useRef<RemoteVideoTrack | null>(null);
+  const remoteAudioElementRef = useRef<HTMLAudioElement | null>(null);
   const mediaEnabledRef = useRef(false);
 
   const detachRemoteTrack = useCallback(() => {
@@ -91,7 +93,13 @@ export function useLiveKit(options: UseLiveKitOptions = {}): UseLiveKitReturn {
 
   const handleDataMessage = useCallback(
     (payload: Uint8Array, participant?: RemoteParticipant | LocalParticipant | undefined) => {
-      if (!options.onRemoteCaptionReceived) {
+      if (!options.onRemoteCaptionReceived || !room) {
+        return;
+      }
+
+      // Ignore messages from local participant (self)
+      if (participant && participant === room.localParticipant) {
+        console.log('[LiveKit] Ignoring own data message');
         return;
       }
 
@@ -112,7 +120,7 @@ export function useLiveKit(options: UseLiveKitOptions = {}): UseLiveKitReturn {
         console.error('[LiveKit] Failed to parse data message', err);
       }
     },
-    [options],
+    [options, room],
   );
 
   const attachLocalVideo = useCallback(() => {
@@ -250,8 +258,27 @@ export function useLiveKit(options: UseLiveKitOptions = {}): UseLiveKitReturn {
         mediaEnabledRef.current = true;
         room.localParticipant
           .enableCameraAndMicrophone()
-          .then(() => {
+          .then(async () => {
             attachLocalVideo();
+
+            // Explicitly enable microphone
+            console.log('[LiveKit] Enabling microphone...');
+            const micEnabled = await room.localParticipant.setMicrophoneEnabled(true);
+            console.log('[LiveKit] Microphone enabled:', micEnabled);
+            console.log('[LiveKit] isMicrophoneEnabled:', room.localParticipant.isMicrophoneEnabled);
+
+            // Log all audio track publications
+            const audioTracks = Array.from(room.localParticipant.audioTrackPublications.values());
+            console.log('[LiveKit] Audio track publications:', audioTracks.length, audioTracks);
+            audioTracks.forEach((pub) => {
+              console.log('[LiveKit] Audio track:', {
+                kind: pub.kind,
+                isMuted: pub.isMuted,
+                source: pub.source,
+                track: pub.track,
+              });
+            });
+
             setIsMuted(!room.localParticipant.isMicrophoneEnabled);
             setIsVideoOff(!room.localParticipant.isCameraEnabled);
           })
@@ -281,14 +308,29 @@ export function useLiveKit(options: UseLiveKitOptions = {}): UseLiveKitReturn {
       _publication: RemoteTrackPublication,
       _participant: RemoteParticipant,
     ) => {
-      if (track.kind !== Track.Kind.Video) {
-        return;
-      }
+      console.log('[LiveKit] Track subscribed:', track.kind, track);
 
-      const videoTrack = track as RemoteVideoTrack;
-      remoteVideoTrackRef.current = videoTrack;
-      attachTrackToElement(videoTrack, remoteVideoElementRef.current);
-      updateRemoteParticipantCount(room);
+      if (track.kind === Track.Kind.Video) {
+        const videoTrack = track as RemoteVideoTrack;
+        remoteVideoTrackRef.current = videoTrack;
+        attachTrackToElement(videoTrack, remoteVideoElementRef.current);
+        updateRemoteParticipantCount(room);
+      } else if (track.kind === Track.Kind.Audio) {
+        // Attach remote audio track to audio element
+        const audioTrack = track as RemoteAudioTrack;
+
+        // Create audio element if it doesn't exist
+        if (!remoteAudioElementRef.current) {
+          const audioElement = document.createElement('audio');
+          audioElement.autoplay = true;
+          remoteAudioElementRef.current = audioElement;
+          console.log('[LiveKit] Created audio element for remote audio');
+        }
+
+        // Attach audio track
+        audioTrack.attach(remoteAudioElementRef.current);
+        console.log('[LiveKit] Remote audio track attached');
+      }
     };
 
     const handleTrackUnsubscribed = (
@@ -298,13 +340,22 @@ export function useLiveKit(options: UseLiveKitOptions = {}): UseLiveKitReturn {
     ) => {
       if (track.kind === Track.Kind.Video && remoteVideoTrackRef.current === track) {
         detachRemoteTrack();
+      } else if (track.kind === Track.Kind.Audio && remoteAudioElementRef.current) {
+        // Detach audio track
+        const audioTrack = track as RemoteAudioTrack;
+        audioTrack.detach(remoteAudioElementRef.current);
+        console.log('[LiveKit] Remote audio track detached');
       }
     };
 
     const handleLocalTrackPublished = (publication: LocalTrackPublication) => {
+      console.log('[LiveKit] Local track published:', publication.kind, publication);
+
       if (publication.kind === Track.Kind.Video && publication.videoTrack) {
         localVideoTrackRef.current = publication.videoTrack;
         attachTrackToElement(publication.videoTrack, localVideoElementRef.current);
+      } else if (publication.kind === Track.Kind.Audio) {
+        console.log('[LiveKit] Local audio track published successfully');
       }
     };
 
@@ -342,6 +393,24 @@ export function useLiveKit(options: UseLiveKitOptions = {}): UseLiveKitReturn {
           break;
         }
       }
+
+      // Also attach remote audio tracks
+      for (const publication of participant.audioTrackPublications.values()) {
+        if (publication.kind === Track.Kind.Audio && publication.audioTrack) {
+          const audioTrack = publication.audioTrack as RemoteAudioTrack;
+
+          // Create audio element if needed
+          if (!remoteAudioElementRef.current) {
+            const audioElement = document.createElement('audio');
+            audioElement.autoplay = true;
+            remoteAudioElementRef.current = audioElement;
+            console.log('[LiveKit] Created audio element for existing remote audio');
+          }
+
+          audioTrack.attach(remoteAudioElementRef.current);
+          console.log('[LiveKit] Existing remote audio track attached');
+        }
+      }
     }
 
     return () => {
@@ -358,6 +427,12 @@ export function useLiveKit(options: UseLiveKitOptions = {}): UseLiveKitReturn {
       detachRemoteTrack();
       if (localVideoTrackRef.current && localVideoElementRef.current) {
         localVideoTrackRef.current.detach(localVideoElementRef.current);
+      }
+
+      // Cleanup audio element
+      if (remoteAudioElementRef.current) {
+        remoteAudioElementRef.current.remove();
+        remoteAudioElementRef.current = null;
       }
     };
   }, [

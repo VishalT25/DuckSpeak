@@ -3,7 +3,7 @@
  * Beautiful UI with smooth animations and robust caption/sign synchronization
  */
 
-import { MutableRefObject, useCallback, useEffect, useRef, useState } from 'react';
+import React, { MutableRefObject, useCallback, useEffect, useRef, useState } from 'react';
 import { LiveKitRoom, useParticipants } from '@livekit/components-react';
 import { useLiveKit, CaptionMessage } from '../hooks/useLiveKit';
 import { useSpeechToText } from '../hooks/useSpeechToText';
@@ -43,30 +43,8 @@ export function VideoCall() {
   const speech = useSpeechToText({
     continuous: true,
     interimResults: true,
-    onTranscript: (transcript: string, isFinal: boolean) => {
-      const trimmed = transcript.trim();
-      if (!isFinal || trimmed.length === 0 || signRecognitionMode) {
-        return;
-      }
-
-      if (!captionsSentRef.current.has(trimmed)) {
-        sendCaptionRef.current(trimmed);
-        captionsSentRef.current.add(trimmed);
-
-        // Add to local captions
-        setCaptions(prev => [...prev, {
-          id: `local-${Date.now()}`,
-          text: trimmed,
-          timestamp: Date.now(),
-          sender: 'local' as const
-        }].slice(-20)); // Keep last 20 captions
-
-        if (captionsSentRef.current.size > 50) {
-          const entries = Array.from(captionsSentRef.current);
-          captionsSentRef.current = new Set(entries.slice(-50));
-        }
-      }
-    },
+    // Speech caption handling moved to ConnectedVideoCall component
+    // This callback is intentionally empty to avoid duplicate captions
   });
 
   const handleRemoteCaption = useCallback((message: CaptionMessage) => {
@@ -247,18 +225,30 @@ export function VideoCall() {
         participantName={participantName}
         signRecognitionMode={signRecognitionMode}
         onToggleSignRecognition={() => setSignRecognitionMode(!signRecognitionMode)}
+        roomName={roomName}
       />
     </LiveKitRoom>
   );
 }
 
+// Calculate opacity for fade-out effect (fade starts after 6 seconds, fully faded at 8 seconds)
+const getOpacity = (group: Caption[]) => {
+  const now = Date.now();
+  const latestTimestamp = group[group.length - 1].timestamp;
+  const age = now - latestTimestamp;
+
+  if (age < 6000) return 1; // Full opacity for first 6 seconds
+  if (age >= 8000) return 0; // Fully transparent at 8 seconds
+  return 1 - (age - 6000) / 2000; // Fade from 1 to 0 over 2 seconds
+};
+
 interface RemoteParticipantsProps {
-  latestRemoteCaption: Caption | undefined;
+  groupedRemoteCaptions: Caption[][];
   linkCopied: boolean;
   copyLinkToClipboard: () => void;
 }
 
-function RemoteParticipants({ latestRemoteCaption, linkCopied, copyLinkToClipboard }: RemoteParticipantsProps) {
+function RemoteParticipants({ groupedRemoteCaptions, linkCopied, copyLinkToClipboard }: RemoteParticipantsProps) {
   const participants = useParticipants();
   const remoteParticipants = participants.filter(p => p.isLocal === false);
 
@@ -313,11 +303,20 @@ function RemoteParticipants({ latestRemoteCaption, linkCopied, copyLinkToClipboa
                 {participant.name || participant.identity}'s Captions
               </div>
               <div style={styles.captionTextBoxContent}>
-                {latestRemoteCaption ? (
-                  <div style={styles.captionTextLine}>
-                    <span style={styles.captionIcon}>💬</span>
-                    {latestRemoteCaption.text}
-                  </div>
+                {groupedRemoteCaptions.length > 0 ? (
+                  groupedRemoteCaptions.map((group) => (
+                    <div
+                      key={group[0].id}
+                      style={{
+                        ...styles.captionTextLine,
+                        opacity: getOpacity(group),
+                        transition: 'opacity 0.3s ease-out'
+                      }}
+                    >
+                      <span style={styles.captionIcon}>💬</span>
+                      {group.map(c => c.text).join(' ')}
+                    </div>
+                  ))
                 ) : (
                   <div style={styles.captionTextEmpty}>
                     Waiting for captions...
@@ -343,6 +342,7 @@ interface ConnectedVideoCallProps {
   participantName: string;
   signRecognitionMode: boolean;
   onToggleSignRecognition: () => void;
+  roomName: string;
 }
 
 function ConnectedVideoCall({
@@ -356,11 +356,29 @@ function ConnectedVideoCall({
   participantName,
   signRecognitionMode,
   onToggleSignRecognition,
+  roomName,
 }: ConnectedVideoCallProps) {
   const [linkCopied, setLinkCopied] = useState(false);
+  const [roomCodeCopied, setRoomCodeCopied] = useState(false);
   const [speechStarted, setSpeechStarted] = useState(false);
+  const [speechRecognitionMode, setSpeechRecognitionMode] = useState(false);
   const [aslGesturesSent, setAslGesturesSent] = useState<Set<string>>(new Set());
+  const [, forceUpdate] = useState(0);
+
+  // Device selection state
+  const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
+  const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedAudioDevice, setSelectedAudioDevice] = useState<string>('');
+  const [selectedVideoDevice, setSelectedVideoDevice] = useState<string>('');
+  const [audioEnabled, setAudioEnabled] = useState(true);
+  const [videoEnabled, setVideoEnabled] = useState(true);
+  const [showAudioMenu, setShowAudioMenu] = useState(false);
+  const [showVideoMenu, setShowVideoMenu] = useState(false);
   const localVideoElementRef = useRef<HTMLVideoElement | null>(null);
+  const displayCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const processingVideoRef = useRef<HTMLVideoElement | null>(null);
+  const lastProcessedTranscript = useRef<string>('');
+  const animationFrameIdRef = useRef<number | null>(null);
 
   const {
     localVideoRef,
@@ -374,15 +392,163 @@ function ConnectedVideoCall({
     toggleVideo,
     leaveCall,
     sendCaption,
+    room,
   } = useLiveKit({
     onRemoteCaptionReceived,
   });
 
-  // Track the local video element
+  // Enumerate media devices
+  useEffect(() => {
+    const enumerateDevices = async () => {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const audioInputs = devices.filter(d => d.kind === 'audioinput');
+        const videoInputs = devices.filter(d => d.kind === 'videoinput');
+
+        setAudioDevices(audioInputs);
+        setVideoDevices(videoInputs);
+
+        // Set default devices
+        if (audioInputs.length > 0 && !selectedAudioDevice) {
+          setSelectedAudioDevice(audioInputs[0].deviceId);
+        }
+        if (videoInputs.length > 0 && !selectedVideoDevice) {
+          setSelectedVideoDevice(videoInputs[0].deviceId);
+        }
+      } catch (err) {
+        console.error('[VideoCall] Failed to enumerate devices:', err);
+      }
+    };
+
+    enumerateDevices();
+
+    // Listen for device changes
+    navigator.mediaDevices.addEventListener('devicechange', enumerateDevices);
+    return () => navigator.mediaDevices.removeEventListener('devicechange', enumerateDevices);
+  }, [selectedAudioDevice, selectedVideoDevice]);
+
+  // Handle audio device change
+  const handleAudioDeviceChange = async (deviceId: string) => {
+    if (!room) return;
+
+    setSelectedAudioDevice(deviceId);
+    setShowAudioMenu(false);
+
+    try {
+      await room.switchActiveDevice('audioinput', deviceId);
+      console.log('[VideoCall] Switched to audio device:', deviceId);
+    } catch (err) {
+      console.error('[VideoCall] Failed to switch audio device:', err);
+    }
+  };
+
+  // Handle video device change
+  const handleVideoDeviceChange = async (deviceId: string) => {
+    if (!room) return;
+
+    setSelectedVideoDevice(deviceId);
+    setShowVideoMenu(false);
+
+    try {
+      await room.switchActiveDevice('videoinput', deviceId);
+      console.log('[VideoCall] Switched to video device:', deviceId);
+    } catch (err) {
+      console.error('[VideoCall] Failed to switch video device:', err);
+    }
+  };
+
+  // Handle audio enable/disable
+  const handleAudioToggle = async () => {
+    const nextEnabled = !audioEnabled;
+    setAudioEnabled(nextEnabled);
+    await toggleMute();
+  };
+
+  // Handle video enable/disable
+  const handleVideoToggle = async () => {
+    const nextEnabled = !videoEnabled;
+    setVideoEnabled(nextEnabled);
+    await toggleVideo();
+  };
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('[data-mixer-menu]')) {
+        setShowAudioMenu(false);
+        setShowVideoMenu(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+
+  // Track the local video element for LiveKit (processing video)
   const handleLocalVideoRef = useCallback((element: HTMLVideoElement | null) => {
     localVideoElementRef.current = element;
+    processingVideoRef.current = element;
     localVideoRef(element);
   }, [localVideoRef]);
+
+  // Draw video to canvas continuously (canvas is isolated from React re-renders)
+  useEffect(() => {
+    const processingVideo = processingVideoRef.current;
+    const canvas = displayCanvasRef.current;
+
+    if (!processingVideo || !canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const drawFrame = () => {
+      if (processingVideo.readyState >= 2 && processingVideo.videoWidth > 0) {
+        // Set canvas size to match video
+        if (canvas.width !== processingVideo.videoWidth || canvas.height !== processingVideo.videoHeight) {
+          canvas.width = processingVideo.videoWidth;
+          canvas.height = processingVideo.videoHeight;
+        }
+
+        // Draw video frame to canvas (mirrored like a real mirror)
+        ctx.save();
+        ctx.scale(-1, 1);
+        ctx.drawImage(processingVideo, -canvas.width, 0, canvas.width, canvas.height);
+        ctx.restore();
+      }
+
+      animationFrameIdRef.current = requestAnimationFrame(drawFrame);
+    };
+
+    // Start drawing when video is ready
+    const handleLoadedMetadata = () => {
+      console.log('[VideoCall] Video ready, starting canvas draw loop');
+      drawFrame();
+    };
+
+    processingVideo.addEventListener('loadedmetadata', handleLoadedMetadata);
+
+    // Try starting immediately if video already loaded
+    if (processingVideo.readyState >= 2) {
+      drawFrame();
+    }
+
+    return () => {
+      processingVideo.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      if (animationFrameIdRef.current) {
+        cancelAnimationFrame(animationFrameIdRef.current);
+      }
+    };
+  }, []);
+
+  // Timer to update fade effect
+  useEffect(() => {
+    const interval = setInterval(() => {
+      forceUpdate(prev => prev + 1);
+    }, 100); // Update every 100ms for smooth fade
+
+    return () => clearInterval(interval);
+  }, []);
 
   // ASL Recognition
   const asl = useASLRecognition({
@@ -450,18 +616,40 @@ function ConnectedVideoCall({
     };
   }, [sendCaption, sendCaptionRef]);
 
-  // Speech recognition control - fixed dependency loop
+  // Handle speech recognition results
+  useEffect(() => {
+    if (speech.finalTranscript && speechRecognitionMode && isConnected) {
+      // Check if this is a new transcript to avoid duplicates
+      if (speech.finalTranscript !== lastProcessedTranscript.current) {
+        console.log('[VideoCall] 🎤 Speech transcript:', speech.finalTranscript);
+        lastProcessedTranscript.current = speech.finalTranscript;
+
+        sendCaption(speech.finalTranscript);
+
+        // Add to local captions state
+        setCaptions(prev => [...prev, {
+          id: `local-speech-${Date.now()}`,
+          text: speech.finalTranscript,
+          timestamp: Date.now(),
+          sender: 'local' as const
+        }].slice(-20));
+
+        // Reset transcript after processing
+        speech.resetTranscript();
+      }
+    }
+  }, [speech.finalTranscript, speechRecognitionMode, isConnected, sendCaption, setCaptions, speech]);
+
+  // Speech recognition control
   useEffect(() => {
     if (!isConnected || !speech.isSupported) return;
 
-    if (!signRecognitionMode && !speechStarted) {
+    if (speechRecognitionMode && !speechStarted) {
       console.log('[VideoCall] Starting speech recognition');
       speech.startListening();
       setSpeechStarted(true);
-    }
-
-    if (signRecognitionMode && speechStarted) {
-      console.log('[VideoCall] Stopping speech recognition (sign mode)');
+    } else if (!speechRecognitionMode && speechStarted) {
+      console.log('[VideoCall] Stopping speech recognition');
       speech.stopListening();
       setSpeechStarted(false);
     }
@@ -472,7 +660,7 @@ function ConnectedVideoCall({
         setSpeechStarted(false);
       }
     };
-  }, [isConnected, signRecognitionMode, speech.isSupported]);
+  }, [isConnected, speechRecognitionMode, speechStarted, speech, signRecognitionMode]);
 
   const copyLinkToClipboard = async () => {
     try {
@@ -484,6 +672,16 @@ function ConnectedVideoCall({
     }
   };
 
+  const copyRoomCodeToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(roomName);
+      setRoomCodeCopied(true);
+      setTimeout(() => setRoomCodeCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy room code:', err);
+    }
+  };
+
   const handleLeaveClick = async () => {
     await leaveCall();
     onLeave();
@@ -491,8 +689,45 @@ function ConnectedVideoCall({
 
   const localCaptions = captions.filter(c => c.sender === 'local');
   const remoteCaptions = captions.filter(c => c.sender === 'remote');
-  const latestLocalCaption = localCaptions[localCaptions.length - 1];
-  const latestRemoteCaption = remoteCaptions[remoteCaptions.length - 1];
+
+  // Group captions by time proximity (within 3 seconds = same line)
+  const groupCaptionsByTime = (captionList: Caption[], maxGapMs = 3000) => {
+    if (captionList.length === 0) return [];
+
+    const groups: Caption[][] = [];
+    let currentGroup: Caption[] = [captionList[0]];
+
+    for (let i = 1; i < captionList.length; i++) {
+      const timeDiff = captionList[i].timestamp - captionList[i - 1].timestamp;
+
+      if (timeDiff <= maxGapMs) {
+        // Same group
+        currentGroup.push(captionList[i]);
+      } else {
+        // New group
+        groups.push(currentGroup);
+        currentGroup = [captionList[i]];
+      }
+    }
+
+    // Add last group
+    if (currentGroup.length > 0) {
+      groups.push(currentGroup);
+    }
+
+    // Filter out groups older than 8 seconds
+    const now = Date.now();
+    const filteredGroups = groups.filter(group => {
+      const latestTimestamp = group[group.length - 1].timestamp;
+      return now - latestTimestamp < 8000;
+    });
+
+    // Return last 5 groups
+    return filteredGroups.slice(-5);
+  };
+
+  const groupedLocalCaptions = groupCaptionsByTime(localCaptions);
+  const groupedRemoteCaptions = groupCaptionsByTime(remoteCaptions);
 
   return (
     <div style={styles.callContainer}>
@@ -504,32 +739,106 @@ function ConnectedVideoCall({
             <span style={styles.statusDot}></span>
             {hasRemoteParticipant ? 'Connected' : 'Waiting...'}
           </div>
+          <div style={styles.roomCodeBadge}>
+            <span style={styles.roomCodeText}>{roomName}</span>
+            <button
+              onClick={copyRoomCodeToClipboard}
+              style={styles.roomCodeCopyBtn}
+              title="Copy room code"
+            >
+              {roomCodeCopied ? '✓' : '📋'}
+            </button>
+          </div>
         </div>
 
         <div style={styles.headerControls}>
-          <button
-            onClick={toggleMute}
-            disabled={isConnecting}
-            style={{
-              ...styles.controlBtn,
-              ...(isMuted && styles.controlBtnMuted),
-            }}
-            title={isMuted ? 'Unmute' : 'Mute'}
-          >
-            {isMuted ? '🔇' : '🎤'}
-          </button>
+          {/* Audio Mixer Dropdown */}
+          <div style={styles.mixerContainer} data-mixer-menu>
+            <button
+              onClick={() => setShowAudioMenu(!showAudioMenu)}
+              disabled={isConnecting}
+              style={{
+                ...styles.controlBtn,
+                ...(isMuted && styles.controlBtnMuted),
+              }}
+              title="Audio settings"
+            >
+              {isMuted ? '🔇' : '🎤'}
+            </button>
+            {showAudioMenu && (
+              <div style={styles.dropdownMenu}>
+                <div style={styles.dropdownHeader}>Audio Input</div>
+                <button
+                  onClick={handleAudioToggle}
+                  style={{
+                    ...styles.dropdownItem,
+                    ...(isMuted && styles.dropdownItemDisabled),
+                  }}
+                >
+                  {isMuted ? '❌ Disabled' : '✅ Enabled'}
+                </button>
+                <div style={styles.dropdownDivider}></div>
+                {audioDevices.map(device => (
+                  <button
+                    key={device.deviceId}
+                    onClick={() => handleAudioDeviceChange(device.deviceId)}
+                    style={{
+                      ...styles.dropdownItem,
+                      ...(selectedAudioDevice === device.deviceId && styles.dropdownItemSelected),
+                    }}
+                    disabled={isMuted}
+                  >
+                    {selectedAudioDevice === device.deviceId && '✓ '}
+                    {device.label || `Microphone ${audioDevices.indexOf(device) + 1}`}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
-          <button
-            onClick={toggleVideo}
-            disabled={isConnecting}
-            style={{
-              ...styles.controlBtn,
-              ...(isVideoOff && styles.controlBtnMuted),
-            }}
-            title={isVideoOff ? 'Turn on camera' : 'Turn off camera'}
-          >
-            {isVideoOff ? '📹' : '📷'}
-          </button>
+          {/* Video Mixer Dropdown */}
+          <div style={styles.mixerContainer} data-mixer-menu>
+            <button
+              onClick={() => setShowVideoMenu(!showVideoMenu)}
+              disabled={isConnecting}
+              style={{
+                ...styles.controlBtn,
+                ...(isVideoOff && styles.controlBtnMuted),
+              }}
+              title="Video settings"
+            >
+              {isVideoOff ? '📹' : '📷'}
+            </button>
+            {showVideoMenu && (
+              <div style={styles.dropdownMenu}>
+                <div style={styles.dropdownHeader}>Video Input</div>
+                <button
+                  onClick={handleVideoToggle}
+                  style={{
+                    ...styles.dropdownItem,
+                    ...(isVideoOff && styles.dropdownItemDisabled),
+                  }}
+                >
+                  {isVideoOff ? '❌ Disabled' : '✅ Enabled'}
+                </button>
+                <div style={styles.dropdownDivider}></div>
+                {videoDevices.map(device => (
+                  <button
+                    key={device.deviceId}
+                    onClick={() => handleVideoDeviceChange(device.deviceId)}
+                    style={{
+                      ...styles.dropdownItem,
+                      ...(selectedVideoDevice === device.deviceId && styles.dropdownItemSelected),
+                    }}
+                    disabled={isVideoOff}
+                  >
+                    {selectedVideoDevice === device.deviceId && '✓ '}
+                    {device.label || `Camera ${videoDevices.indexOf(device) + 1}`}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           <button
             onClick={onToggleSignRecognition}
@@ -540,6 +849,17 @@ function ConnectedVideoCall({
             title={signRecognitionMode ? 'Disable sign recognition' : 'Enable sign recognition (requires trained model)'}
           >
             🤟
+          </button>
+
+          <button
+            onClick={() => setSpeechRecognitionMode(!speechRecognitionMode)}
+            style={{
+              ...styles.controlBtn,
+              ...(speechRecognitionMode && styles.controlBtnActive),
+            }}
+            title={speechRecognitionMode ? 'Disable speech recognition' : 'Enable speech recognition'}
+          >
+            💬
           </button>
 
           <button
@@ -594,17 +914,25 @@ function ConnectedVideoCall({
         {/* Local video */}
         <div style={styles.videoCard}>
           <div style={styles.videoContainer}>
+            {/* Hidden processing video for ASL detection - LiveKit stream */}
             <video
               ref={handleLocalVideoRef}
               autoPlay
               muted
               playsInline
+              style={styles.hiddenProcessingVideo}
+            />
+
+            {/* Visible display canvas - draws video frames, isolated from re-renders */}
+            <canvas
+              ref={displayCanvasRef}
               style={styles.video}
             />
+
             <div style={styles.videoLabel}>
               {participantName} (You)
             </div>
-            {speech.isListening && !signRecognitionMode && (
+            {speechRecognitionMode && speech.isListening && (
               <div style={styles.listeningIndicator}>
                 🎙️ Listening
               </div>
@@ -612,6 +940,11 @@ function ConnectedVideoCall({
             {signRecognitionMode && (
               <div style={styles.signModeIndicator}>
                 🤟 Sign Mode
+              </div>
+            )}
+            {speechRecognitionMode && (
+              <div style={styles.speechModeIndicator}>
+                💬 Speech Mode
               </div>
             )}
           </div>
@@ -622,16 +955,25 @@ function ConnectedVideoCall({
               {participantName}'s Captions
             </div>
             <div style={styles.captionTextBoxContent}>
-              {latestLocalCaption ? (
-                <div style={styles.captionTextLine}>
-                  <span style={styles.captionIcon}>
-                    {signRecognitionMode ? '🤟' : '💬'}
-                  </span>
-                  {latestLocalCaption.text}
-                </div>
+              {groupedLocalCaptions.length > 0 ? (
+                groupedLocalCaptions.map((group) => (
+                  <div
+                    key={group[0].id}
+                    style={{
+                      ...styles.captionTextLine,
+                      opacity: getOpacity(group),
+                      transition: 'opacity 0.3s ease-out'
+                    }}
+                  >
+                    <span style={styles.captionIcon}>
+                      {signRecognitionMode ? '🤟' : speechRecognitionMode ? '💬' : '💬'}
+                    </span>
+                    {group.map(c => c.text).join(' ')}
+                  </div>
+                ))
               ) : (
                 <div style={styles.captionTextEmpty}>
-                  {signRecognitionMode ? 'Sign to see ASL translations' : 'Speak to see captions'}
+                  {signRecognitionMode ? 'Sign to see ASL translations' : speechRecognitionMode ? 'Speak to see captions' : 'Enable ASL or speech mode'}
                 </div>
               )}
             </div>
@@ -640,7 +982,7 @@ function ConnectedVideoCall({
 
         {/* Remote participants */}
         <RemoteParticipants
-          latestRemoteCaption={latestRemoteCaption}
+          groupedRemoteCaptions={groupedRemoteCaptions}
           linkCopied={linkCopied}
           copyLinkToClipboard={copyLinkToClipboard}
         />
@@ -823,6 +1165,33 @@ const styles = {
     background: '#00ff88',
     animation: 'pulse 2s infinite',
   } as const,
+  roomCodeBadge: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '6px 12px',
+    background: 'rgba(0, 204, 255, 0.1)',
+    borderRadius: '20px',
+    fontSize: '13px',
+    fontFamily: 'monospace',
+  } as const,
+  roomCodeText: {
+    color: '#66ccff',
+    fontWeight: '600' as const,
+    letterSpacing: '0.5px',
+  } as const,
+  roomCodeCopyBtn: {
+    border: 'none',
+    background: 'transparent',
+    color: '#66ccff',
+    fontSize: '16px',
+    cursor: 'pointer',
+    padding: '2px 4px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'all 0.2s ease',
+  } as const,
   headerControls: {
     display: 'flex',
     gap: '12px',
@@ -848,6 +1217,55 @@ const styles = {
   controlBtnActive: {
     background: 'linear-gradient(135deg, #00ff88, #00ccff)',
     color: '#0a0a0a',
+  } as const,
+  mixerContainer: {
+    position: 'relative' as const,
+  } as const,
+  dropdownMenu: {
+    position: 'absolute' as const,
+    top: '56px',
+    right: '0',
+    minWidth: '250px',
+    background: 'rgba(20, 20, 30, 0.98)',
+    backdropFilter: 'blur(10px)',
+    border: '1px solid rgba(0, 255, 136, 0.3)',
+    borderRadius: '12px',
+    padding: '8px',
+    boxShadow: '0 10px 40px rgba(0, 0, 0, 0.5)',
+    zIndex: 1000,
+  } as const,
+  dropdownHeader: {
+    padding: '8px 12px',
+    fontSize: '12px',
+    fontWeight: '600' as const,
+    color: '#7effa8',
+    textTransform: 'uppercase' as const,
+    letterSpacing: '1px',
+  } as const,
+  dropdownItem: {
+    width: '100%',
+    padding: '10px 12px',
+    border: 'none',
+    background: 'transparent',
+    color: '#fff',
+    fontSize: '14px',
+    textAlign: 'left' as const,
+    cursor: 'pointer',
+    borderRadius: '8px',
+    transition: 'all 0.2s ease',
+    display: 'block',
+  } as const,
+  dropdownItemSelected: {
+    background: 'rgba(0, 255, 136, 0.15)',
+    color: '#7effa8',
+  } as const,
+  dropdownItemDisabled: {
+    opacity: 0.5,
+  } as const,
+  dropdownDivider: {
+    height: '1px',
+    background: 'rgba(255, 255, 255, 0.1)',
+    margin: '8px 0',
   } as const,
   leaveBtn: {
     padding: '12px 24px',
@@ -908,12 +1326,25 @@ const styles = {
     borderTopLeftRadius: '20px',
     borderTopRightRadius: '20px',
   } as const,
+  hiddenProcessingVideo: {
+    position: 'absolute' as const,
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover' as const,
+    opacity: 0,
+    pointerEvents: 'none' as const,
+    zIndex: 1,
+  } as const,
   video: {
+    position: 'relative' as const,
     width: '100%',
     height: '100%',
     objectFit: 'cover' as const,
     backgroundColor: '#111',
-    transform: 'scaleX(-1)',
+    willChange: 'transform',
+    backfaceVisibility: 'hidden' as const,
+    WebkitBackfaceVisibility: 'hidden',
+    zIndex: 2,
   } as const,
   videoLabel: {
     position: 'absolute' as const,
@@ -946,6 +1377,18 @@ const styles = {
     right: '16px',
     padding: '8px 16px',
     background: 'linear-gradient(135deg, #00ff88, #00ccff)',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: '600' as const,
+    color: '#0a0a0a',
+    animation: 'pulse 1.5s infinite',
+  } as const,
+  speechModeIndicator: {
+    position: 'absolute' as const,
+    top: '56px',
+    right: '16px',
+    padding: '8px 16px',
+    background: 'linear-gradient(135deg, #ff8800, #ffcc00)',
     borderRadius: '8px',
     fontSize: '14px',
     fontWeight: '600' as const,
