@@ -8,6 +8,7 @@ import { LiveKitRoom, useParticipants } from '@livekit/components-react';
 import { useLiveKit, CaptionMessage } from '../hooks/useLiveKit';
 import { useSpeechToText } from '../hooks/useSpeechToText';
 import { useASLRecognition } from '../hooks/useASLRecognition';
+import { useDynamicGestureRecognition } from '../hooks/useDynamicGestureRecognition';
 import { toNaturalText } from '../lib/labels';
 import { speak } from '../lib/tts';
 import { Track } from 'livekit-client';
@@ -31,6 +32,7 @@ export function VideoCall() {
   const [shareableLink, setShareableLink] = useState('');
   const [serverUrl, setServerUrl] = useState('');
   const [signRecognitionMode, setSignRecognitionMode] = useState(false);
+  const [useDynamicGestures, setUseDynamicGestures] = useState(false);
 
   const captionsSentRef = useRef<Set<string>>(new Set());
   const sendCaptionRef = useRef<(text: string) => void>(() => {
@@ -438,6 +440,8 @@ export function VideoCall() {
         participantName={participantName}
         signRecognitionMode={signRecognitionMode}
         onToggleSignRecognition={() => setSignRecognitionMode(!signRecognitionMode)}
+        useDynamicGestures={useDynamicGestures}
+        onToggleDynamicGestures={() => setUseDynamicGestures(!useDynamicGestures)}
         roomName={roomName}
       />
     </LiveKitRoom>
@@ -555,6 +559,8 @@ interface ConnectedVideoCallProps {
   participantName: string;
   signRecognitionMode: boolean;
   onToggleSignRecognition: () => void;
+  useDynamicGestures: boolean;
+  onToggleDynamicGestures: () => void;
   roomName: string;
 }
 
@@ -569,6 +575,8 @@ function ConnectedVideoCall({
   participantName,
   signRecognitionMode,
   onToggleSignRecognition,
+  useDynamicGestures,
+  onToggleDynamicGestures,
   roomName,
 }: ConnectedVideoCallProps) {
   const [linkCopied, setLinkCopied] = useState(false);
@@ -854,12 +862,12 @@ function ConnectedVideoCall({
     return () => clearInterval(interval);
   }, []);
 
-  // ASL Recognition
+  // Static ASL Recognition
   const asl = useASLRecognition({
     videoElement: localVideoElementRef.current,
-    enabled: signRecognitionMode && isConnected,
+    enabled: signRecognitionMode && !useDynamicGestures && isConnected,
     onGestureDetected: (label: string, confidence: number) => {
-      console.log('[VideoCall] 🤟 ASL gesture detected:', label, 'confidence:', confidence);
+      console.log('[VideoCall] 🤟 Static ASL gesture detected:', label, 'confidence:', confidence);
 
       // Convert to natural text
       const text = toNaturalText(label);
@@ -908,7 +916,66 @@ function ConnectedVideoCall({
       }, 2000);
     },
     onError: (err) => {
-      console.error('[VideoCall] ASL recognition error:', err);
+      console.error('[VideoCall] Static ASL recognition error:', err);
+    },
+  });
+
+  // Dynamic Gesture Recognition
+  const dynamicGesture = useDynamicGestureRecognition({
+    videoElement: localVideoElementRef.current,
+    enabled: signRecognitionMode && useDynamicGestures && isConnected,
+    recordingDuration: 2000, // 2 seconds
+    autoRecordInterval: 3000, // Auto-record every 3 seconds
+    onGestureDetected: (label: string, confidence: number) => {
+      console.log('[VideoCall] 🌊 Dynamic gesture detected:', label, 'confidence:', confidence);
+
+      // Convert to natural text
+      const text = toNaturalText(label);
+      console.log('[VideoCall] 📝 Translated to:', text);
+
+      // Speak the detected sign
+      speak(text);
+      console.log('[VideoCall] 🔊 Speaking:', text);
+
+      // Send as caption to remote participant (avoid duplicates)
+      if (!aslGesturesSent.has(label)) {
+        console.log('[VideoCall] 📤 Sending dynamic gesture translation to remote participants:', text);
+        sendCaption(text);
+
+        // Add to local captions state so it shows in the caption box
+        setCaptions(prev => [...prev, {
+          id: `local-dynamic-${Date.now()}`,
+          text,
+          timestamp: Date.now(),
+          sender: 'local' as const
+        }].slice(-20));
+
+        setAslGesturesSent(prev => {
+          const newSet = new Set(prev);
+          newSet.add(label);
+          if (newSet.size > 50) {
+            const entries = Array.from(newSet);
+            return new Set(entries.slice(-50));
+          }
+          return newSet;
+        });
+
+        console.log('[VideoCall] ✅ Dynamic gesture translation sent successfully');
+      } else {
+        console.log('[VideoCall] ⏭️ Skipping duplicate gesture:', label);
+      }
+
+      // Clear after a delay to allow same gesture again
+      setTimeout(() => {
+        setAslGesturesSent(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(label);
+          return newSet;
+        });
+      }, 2000);
+    },
+    onError: (err) => {
+      console.error('[VideoCall] Dynamic gesture recognition error:', err);
     },
   });
 
@@ -1186,6 +1253,22 @@ function ConnectedVideoCall({
             🤟
           </button>
 
+          {signRecognitionMode && (
+            <button
+              onClick={onToggleDynamicGestures}
+              onMouseEnter={(e) => callScopeRef.current?.methods.hoverControl?.(e.currentTarget, true)}
+              onMouseLeave={(e) => callScopeRef.current?.methods.hoverControl?.(e.currentTarget, false)}
+              style={{
+                ...styles.controlBtn,
+                ...(useDynamicGestures && styles.controlBtnActive),
+                fontSize: '1.5rem',
+              }}
+              title={useDynamicGestures ? 'Switch to static signs' : 'Switch to dynamic gestures (motion-based signs)'}
+            >
+              {useDynamicGestures ? '🌊' : '✋'}
+            </button>
+          )}
+
           <button
             onClick={() => setSpeechRecognitionMode(!speechRecognitionMode)}
             onMouseEnter={(e) => callScopeRef.current?.methods.hoverControl?.(e.currentTarget, true)}
@@ -1227,10 +1310,10 @@ function ConnectedVideoCall({
         </div>
       )}
 
-      {signRecognitionMode && (
+      {signRecognitionMode && !useDynamicGestures && (
         <div style={asl.isModelLoaded ? styles.successBanner : (asl.error ? styles.errorBanner : styles.infoBanner)}>
           {asl.isModelLoaded ? (
-            <>✅ <strong>ASL Translation Active</strong> - Gestures will appear in captions</>
+            <>✅ <strong>Static ASL Recognition Active</strong> - Hand poses will appear in captions</>
           ) : asl.error ? (
             <>
               ⚠️ <strong>{asl.error}</strong>
@@ -1239,7 +1322,27 @@ function ConnectedVideoCall({
               )}
             </>
           ) : (
-            <>⏳ Loading your trained ASL model from Collect & Train tab...</>
+            <>⏳ Loading your trained static ASL model from Collect & Train tab...</>
+          )}
+        </div>
+      )}
+
+      {signRecognitionMode && useDynamicGestures && (
+        <div style={dynamicGesture.isModelLoaded ? styles.successBanner : (dynamicGesture.error ? styles.errorBanner : styles.infoBanner)}>
+          {dynamicGesture.isModelLoaded ? (
+            <>
+              ✅ <strong>Dynamic Gesture Recognition Active</strong> - Motion-based signs will appear in captions
+              {dynamicGesture.isRecording && <> 🔴 Recording... ({dynamicGesture.recordedFrames} frames)</>}
+            </>
+          ) : dynamicGesture.error ? (
+            <>
+              ⚠️ <strong>{dynamicGesture.error}</strong>
+              {dynamicGesture.error.includes('No trained') && (
+                <> - Go to the <strong>Collect & Train</strong> tab and record dynamic gesture sequences!</>
+              )}
+            </>
+          ) : (
+            <>⏳ Loading your trained dynamic gesture model from Collect & Train tab...</>
           )}
         </div>
       )}

@@ -4,6 +4,7 @@
 
 import { get, set, del } from 'idb-keyval';
 import type { ClassifierData } from './classifier';
+import type { SequenceClassifierData } from './sequenceClassifier';
 
 export interface DatasetSample {
   label: string;
@@ -17,8 +18,24 @@ export interface Dataset {
   updatedAt: number;
 }
 
+// New: Sequence dataset for dynamic gestures
+export interface SequenceSample {
+  label: string;
+  sequence: number[][]; // Serialized Float32Array[]
+  timestamp: number;
+  duration: number; // milliseconds
+}
+
+export interface SequenceDataset {
+  samples: SequenceSample[];
+  createdAt: number;
+  updatedAt: number;
+}
+
 const DATASET_KEY = 'signspeak-dataset';
 const MODEL_KEY = 'signspeak-model';
+const SEQUENCE_DATASET_KEY = 'signspeak-sequence-dataset';
+const SEQUENCE_MODEL_KEY = 'signspeak-sequence-model';
 
 /**
  * Save training samples for a label
@@ -293,4 +310,175 @@ export async function getStorageStats(): Promise<{
     hasModel: model !== null,
     datasetSize: JSON.stringify(dataset).length,
   };
+}
+
+// ============================================================================
+// SEQUENCE DATASET FUNCTIONS (for dynamic gestures)
+// ============================================================================
+
+/**
+ * Save sequence sample
+ */
+export async function saveSequence(
+  label: string,
+  sequence: Float32Array[],
+  duration: number
+): Promise<void> {
+  const dataset = await loadSequenceDataset();
+
+  const newSample: SequenceSample = {
+    label,
+    sequence: sequence.map((frame) => Array.from(frame)),
+    timestamp: Date.now(),
+    duration,
+  };
+
+  dataset.samples.push(newSample);
+  dataset.updatedAt = Date.now();
+
+  await set(SEQUENCE_DATASET_KEY, dataset);
+}
+
+/**
+ * Load sequence dataset
+ */
+export async function loadSequenceDataset(): Promise<SequenceDataset> {
+  const existing = await get<SequenceDataset>(SEQUENCE_DATASET_KEY);
+
+  if (existing) {
+    return existing;
+  }
+
+  return {
+    samples: [],
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  };
+}
+
+/**
+ * Get all sequences as training arrays
+ */
+export async function getAllSequences(): Promise<{
+  sequences: Float32Array[][];
+  labels: string[];
+}> {
+  const dataset = await loadSequenceDataset();
+
+  const sequences = dataset.samples.map((s) =>
+    s.sequence.map((frame) => new Float32Array(frame))
+  );
+  const labels = dataset.samples.map((s) => s.label);
+
+  return { sequences, labels };
+}
+
+/**
+ * Get sequence sample counts per label
+ */
+export async function getSequenceSampleCounts(): Promise<Record<string, number>> {
+  const dataset = await loadSequenceDataset();
+
+  const counts: Record<string, number> = {};
+
+  dataset.samples.forEach((s) => {
+    counts[s.label] = (counts[s.label] || 0) + 1;
+  });
+
+  return counts;
+}
+
+/**
+ * Clear sequence dataset
+ */
+export async function clearSequenceDataset(): Promise<void> {
+  await del(SEQUENCE_DATASET_KEY);
+}
+
+/**
+ * Save trained sequence model
+ */
+export async function saveSequenceModel(model: SequenceClassifierData): Promise<void> {
+  await set(SEQUENCE_MODEL_KEY, model);
+}
+
+/**
+ * Load trained sequence model
+ */
+export async function loadSequenceModel(): Promise<SequenceClassifierData | null> {
+  return (await get<SequenceClassifierData>(SEQUENCE_MODEL_KEY)) || null;
+}
+
+/**
+ * Clear saved sequence model
+ */
+export async function clearSequenceModel(): Promise<void> {
+  await del(SEQUENCE_MODEL_KEY);
+}
+
+/**
+ * Get sequence storage statistics
+ */
+export async function getSequenceStorageStats(): Promise<{
+  sampleCount: number;
+  labelCount: number;
+  hasModel: boolean;
+  datasetSize: number;
+  avgSequenceLength: number;
+}> {
+  const dataset = await loadSequenceDataset();
+  const model = await loadSequenceModel();
+
+  const labels = new Set(dataset.samples.map((s) => s.label));
+
+  const avgLength =
+    dataset.samples.length > 0
+      ? dataset.samples.reduce((sum, s) => sum + s.sequence.length, 0) /
+        dataset.samples.length
+      : 0;
+
+  return {
+    sampleCount: dataset.samples.length,
+    labelCount: labels.size,
+    hasModel: model !== null,
+    datasetSize: JSON.stringify(dataset).length,
+    avgSequenceLength: Math.round(avgLength),
+  };
+}
+
+/**
+ * Export sequence dataset and model
+ */
+export async function exportSequenceDataJSON(): Promise<string> {
+  const dataset = await loadSequenceDataset();
+  const model = await loadSequenceModel();
+
+  return JSON.stringify(
+    {
+      dataset,
+      model,
+      exportedAt: Date.now(),
+    },
+    null,
+    2
+  );
+}
+
+/**
+ * Import sequence dataset and model
+ */
+export async function importSequenceDataJSON(json: string): Promise<void> {
+  try {
+    const data = JSON.parse(json);
+
+    if (data.dataset) {
+      await set(SEQUENCE_DATASET_KEY, data.dataset);
+    }
+
+    if (data.model) {
+      await set(SEQUENCE_MODEL_KEY, data.model);
+    }
+  } catch (error) {
+    throw new Error('Failed to import sequence data: ' + (error as Error).message);
+  }
 }
